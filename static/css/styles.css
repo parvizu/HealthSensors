@@ -1,0 +1,89 @@
+#container {
+	width: 1000px;
+    margin: 0 auto;
+    font-family: verdana;
+}
+
+#mainData {
+	background-color: silver;
+}
+
+ .section {
+	border-radius: 4px;
+	padding: 3px;
+}
+
+table td 
+{
+	min-width:100px;
+}
+
+
+#gantt {
+	background-color: lightgray;
+	margin: 5px;
+}
+
+.section h1 {
+	padding: 5px;
+	text-align: center;
+}
+
+.subsection h1 {
+	padding:3px;
+	font-size: ;
+}
+
+#gantt .chartContent {
+	min-height: 100px;
+	width: 780px;
+
+}
+
+.ganttSide, #gantt div.chartContent {
+	display: inline-block;
+}
+
+.ganttSide div {
+	padding: 10px;
+	margin:5px;
+	font-size: 14pt;
+}
+
+path.line
+{
+    fill: none;
+    stroke: #000;
+}
+
+svg {
+	
+}
+
+/*** Heart Rate charts ***/
+#heartRate {
+	display: none;
+	width: 900px;
+}
+
+.heartrate {
+	background-color: ghostwhite;
+	margin: 2px;
+	border-radius: 3px;	
+	
+}
+
+.heartrate div {
+	display: inline-block;
+	vertical-align: top;
+}
+
+.chartDayHeader {
+	min-width: 80px;
+	vertical-align: middle;
+	text-align: center;
+}
+
+.chartDayArea {
+
+}
