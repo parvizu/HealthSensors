@@ -36,9 +36,36 @@ function buildMainTable() {
 
 var mainParameters = {
 	'heartrate': {
-		'h': 70,
-		'l': 50
+		'h': 74,
+		'l': 62
 	}
+}
+
+function addTimeScale(data,target) {
+	d3.select('#'+target).append('svg')
+		.attr("width", width + margin.left + margin.right)
+	    .attr("height", height + margin.top + margin.bottom)
+
+	var anomalyLine = d3.svg.line()
+			.x(function(d) { return x(d.x); })
+	    	.y(function(d) { return y(d.y); });
+
+	console.log(mainParameters.heartrate.h);
+	console.log(d3.max(config.data));
+
+	anomalyHigh = [{'x': 0,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
+	anomalyLow = [{'x': 0,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
+	
+	console.log(anomalyHigh);
+	svg.append("path")
+		.attr("class", "line")
+		.attr("stroke-dasharray","3,3")
+		.attr("d",anomalyLine(anomalyHigh));
+
+	svg.append("path")
+		.attr("class", "line")
+		.attr("stroke-dasharray","3,3")
+		.attr("d",anomalyLine(anomalyLow));
 }
 
 function createConfigFile(data,target,id,className,field) {
@@ -52,7 +79,7 @@ function createConfigFile(data,target,id,className,field) {
 			'bottom': 0,
 			'left': 5
 		},
-		day: getDateDay(data[0]),
+		day: getDateDay(data[1]),
 		width: 800,
 		height: 60,
 		data: setConfigData(data,field),
@@ -63,9 +90,10 @@ function createConfigFile(data,target,id,className,field) {
 }
 
 function getDateDay(date) {
-	console.log(date);
+	
 	var weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-	d = new Date(date['date_epoch']);
+	d = new Date(date['date_human']);
+	console.log(date);
 	return weekdays[d.getDay()];
 }
 
@@ -133,12 +161,6 @@ function createLineChart(config) {
 	  .append("g")
 	    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-	// svg.append("g")
-	//   .attr("class", "x axis")
-	//   .attr("transform", "translate(0," + height + ")")
-	//   .call(xAxis)
-	//   .text(config.xAxisName);
-
 	svg.append("g")
 	  .attr("class", "y axis")
 	  .call(yAxis)
@@ -159,26 +181,97 @@ function createLineChart(config) {
 			.x(function(d) { return x(d.x); })
 	    	.y(function(d) { return y(d.y); });
 
-	console.log(mainParameters.heartrate.h);
-	console.log(d3.max(config.data));
+	// anomalyHigh = [{'x': 0,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
+	// anomalyLow = [{'x': 0,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
 
-	anomalyHigh = [{'x': 1,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
-	anomalyLow = [{'x': 1,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
+	var anomalyLine = d3.svg.line()
+			.x(function(d) { return x(d.x); })
+	    	.y(function(d) { return y(d.y); });
+
+	var addAnomalyLine = function(svg,value) {
+		anomalyData = [{'x': 0,'y':value},{'x': config.data.length,'y':value}];
+		svg.append("path")
+			.attr("class", "line")
+			.attr("stroke-dasharray","1,2")
+			.attr("d",anomalyLine(anomalyData));
+	}
+
+	// addAnomalyLine(svg,90);
+	addAnomalyLine(svg,70);
+	addAnomalyLine(svg,50);
+	// addAnomalyLine(svg,30);
 	
-	console.log(anomalyHigh);
-	svg.append("path")
-		.attr("class", "line")
-		.attr("d",anomalyLine(anomalyHigh));
-
-	svg.append("path")
-		.attr("class", "line")
-		.attr("d",anomalyLine(anomalyLow));
+	
 }
 
 
-var configMonday = createConfigFile(oneday,'#heartRate','hr1','heartrate','heartrate');
-createLineChart(configMonday);
 
-var configTuesday = createConfigFile(daytwo,'#heartRate','hr2','heartrate','heartrate');
-createLineChart(configTuesday);
+
+// var configMonday = createConfigFile(oneday,'#heartRate','hr1','heartrate','heartrate');
+// createLineChart(configMonday);
+
+// var configTuesday = createConfigFile(daytwo,'#heartRate','hr2','heartrate','heartrate');
+// createLineChart(configTuesday);
+
+
+function getWeekData() {
+	var week = [];	 
+	var start = parseInt('1402495200');
+	var end = start + 61200;
+	for (var i = 0; i<7; i++) {
+		week.push(getDayData(start,end));
+		start = end;
+		end = end +61200;
+	}
+	return week;
+}
+
+function getDayData(start,end) {
+	var day = [];
+	console.log(start);
+	console.log(end);
+	$.each(mainData, function(i,d) {
+		if (parseInt(d.date_epoch.trim()) >= start && parseInt(d.date_epoch.trim()) < end) {
+			day.push({
+				"airTemp": d['airTemp'].trim(),
+				"calories": d['calories'].trim(),
+				"date_human": d['date'].trim(),
+				"date_epoch": d['date_epoch'].trim(),
+				"gsr": d['gsr'].trim(),
+				"heartrate": d['heartrate'].trim(),
+				"skinTemp": d['skinTemp'].trim(),
+				"steps": d['steps'].trim()
+			});
+		}
+	});
+	return day;
+}
+
+
+function createWeekHeartRate() {
+	var week = getWeekData();
+	var dayConfig;
+	$.each(week, function(i,d) {
+		$.each(d, function(j,obj) {
+			obj["airTemp"]= obj['airTemp'].trim();
+			obj["calories"]= obj['calories'].trim();
+			obj["date_human"]= obj['date_human'].trim();
+			obj["date_epoch"]= parseInt(obj['date_epoch'].trim());
+			obj["gsr"]= obj['gsr'].trim();
+			obj["heartrate"]= obj['heartrate'].trim();
+			obj["skinTemp"]= obj['skinTemp'].trim();
+			obj["steps"]= obj['steps'].trim();
+		});
+
+		dayConfig = createConfigFile(d,'#heartRate','hr'+i,'heartrate','heartrate');
+
+		createLineChart(dayConfig);
+	})
+}
+
+function showHeartRateWeek() {
+	$("#heartRate").toggle();
+	createWeekHeartRate();
+
+}
 

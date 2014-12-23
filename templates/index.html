@@ -13,7 +13,7 @@
 </head>
 <body>
 	<div id="container">
-		<div id="mainData">
+		<div id="mainData" class="section">
 			<table>
 				<thead>
 					<tr>
@@ -47,21 +47,30 @@
 
 		<div id="gantt" class="section">
 			<h1>October</h1>
+			<div class="ganttSide">
+				<div><a href="" onclick="showHeartRateWeek(); return false;" >Heart Rate</a></div>
+				<div>Blood Oxygen</div>
+				<div>Physical Activity</div>
+				<div>Respiration</div>
+				<div>Sleep Quality</div>
+			</div>
 			<div class="chartContent"></div>
 		</div>
 
-		<div id="monthly"></div>
+		<div id="breakdown" class="section">
+			<div id="monthly"></div>
+			<div id="heartRate">
+				<div id="hearrateScale"></div>
 
-		<div id="heartRate">
-
-
+			</div>
+			
+			<div id="bloodOxygen"></div>
+			<div id="physicalActivity"></div>		
+			<div id="respiration"></div>
+			<div id="sleepQuality"></div>
+			<div id="sidebySide"></div>
 		</div>
 		
-		<div id="bloodOxygen"></div>
-		<div id="physicalActivity"></div>		
-		<div id="respiration"></div>
-		<div id="sleepQuality"></div>
-		<div id="sidebySide"></div>
 
 	</div>
 
