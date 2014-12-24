@@ -1,9 +1,11 @@
 var data;
 var fields = ["airTemp","calories","date","epoch","gsr","heartrate","skinTemp","steps"]
 
-console.log('data');
 $(document).ready( function() {
 	data = loadData();
+
+
+	buildHeartRateScale();
 });
 
 function loadData() {
@@ -36,8 +38,8 @@ function buildMainTable() {
 
 var mainParameters = {
 	'heartrate': {
-		'h': 74,
-		'l': 62
+		'h': 90,
+		'l': 60
 	}
 }
 
@@ -53,8 +55,8 @@ function addTimeScale(data,target) {
 	console.log(mainParameters.heartrate.h);
 	console.log(d3.max(config.data));
 
-	anomalyHigh = [{'x': 0,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
-	anomalyLow = [{'x': 0,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
+	// anomalyHigh = [{'x': 0,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
+	// anomalyLow = [{'x': 0,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
 	
 	console.log(anomalyHigh);
 	svg.append("path")
@@ -93,7 +95,7 @@ function getDateDay(date) {
 	
 	var weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 	d = new Date(date['date_human']);
-	console.log(date);
+	// console.log(date);
 	return weekdays[d.getDay()];
 }
 
@@ -128,7 +130,7 @@ function createLineChart(config) {
 	    .range([15, width-20]);
 
 	var y = d3.scale.linear()
-		.domain([0,100])
+		.domain([0,110])
 	    .range([height-5, 5]);
 
 	var xAxis = d3.svg.axis()
@@ -197,51 +199,38 @@ function createLineChart(config) {
 	}
 
 	// addAnomalyLine(svg,90);
-	addAnomalyLine(svg,70);
-	addAnomalyLine(svg,50);
+	addAnomalyLine(svg,mainParameters.heartrate.h);
+	addAnomalyLine(svg,mainParameters.heartrate.l);
 	// addAnomalyLine(svg,30);
+
+	console.log(mainParameters.heartrate.h);
 	
 	
 }
 
-
-
-
-// var configMonday = createConfigFile(oneday,'#heartRate','hr1','heartrate','heartrate');
-// createLineChart(configMonday);
-
-// var configTuesday = createConfigFile(daytwo,'#heartRate','hr2','heartrate','heartrate');
-// createLineChart(configTuesday);
-
-
-function getWeekData() {
+function getWeekData(field) {
 	var week = [];	 
 	var start = parseInt('1402495200');
 	var end = start + 61200;
 	for (var i = 0; i<7; i++) {
-		week.push(getDayData(start,end));
+		week.push(getDayData(start,end,field));
 		start = end;
 		end = end +61200;
 	}
 	return week;
 }
 
-function getDayData(start,end) {
+function getDayData(start,end, field) {
 	var day = [];
-	console.log(start);
-	console.log(end);
+	// console.log(start);
+	// console.log(end);
 	$.each(mainData, function(i,d) {
 		if (parseInt(d.date_epoch.trim()) >= start && parseInt(d.date_epoch.trim()) < end) {
-			day.push({
-				"airTemp": d['airTemp'].trim(),
-				"calories": d['calories'].trim(),
-				"date_human": d['date'].trim(),
-				"date_epoch": d['date_epoch'].trim(),
-				"gsr": d['gsr'].trim(),
-				"heartrate": d['heartrate'].trim(),
-				"skinTemp": d['skinTemp'].trim(),
-				"steps": d['steps'].trim()
-			});
+			var t = {}
+			t[field] = d[field].trim();
+			t['date_human'] = d['date'].trim();
+			t['date_epoch'] = parseInt(d['date_epoch'].trim());
+			day.push(t);
 		}
 	});
 	return day;
@@ -249,28 +238,22 @@ function getDayData(start,end) {
 
 
 function createWeekHeartRate() {
-	var week = getWeekData();
+	var week = getWeekData('heartrate');
 	var dayConfig;
 	$.each(week, function(i,d) {
-		$.each(d, function(j,obj) {
-			obj["airTemp"]= obj['airTemp'].trim();
-			obj["calories"]= obj['calories'].trim();
-			obj["date_human"]= obj['date_human'].trim();
-			obj["date_epoch"]= parseInt(obj['date_epoch'].trim());
-			obj["gsr"]= obj['gsr'].trim();
-			obj["heartrate"]= obj['heartrate'].trim();
-			obj["skinTemp"]= obj['skinTemp'].trim();
-			obj["steps"]= obj['steps'].trim();
-		});
-
 		dayConfig = createConfigFile(d,'#heartRate','hr'+i,'heartrate','heartrate');
-
 		createLineChart(dayConfig);
 	})
 }
 
+function buildHeartRateScale() {
+
+}
+
 function showHeartRateWeek() {
+	$("#heartRate").html('');
 	$("#heartRate").toggle();
+	
 	createWeekHeartRate();
 
 }
