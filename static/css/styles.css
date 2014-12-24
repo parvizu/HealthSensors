@@ -1,3 +1,7 @@
+body {
+	background-color: black;
+}
+
 #container {
 	width: 1000px;
     margin: 0 auto;
@@ -64,6 +68,10 @@ svg {
 #heartRate {
 	display: none;
 	width: 900px;
+}
+
+#heartRate .scale {
+	min-height: 50px;
 }
 
 .heartrate {
