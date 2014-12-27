@@ -19,7 +19,7 @@ function loadData() {
 		dataDict[obj['id'].trim()].push({
 			"airTemp": obj['airTemp'].trim(),
 			"calories": obj['calories'].trim(),
-			"date": obj['date'].trim(),
+			"date": obj['date_human'].trim(),
 			"epoch": obj['date_epoch'].trim(),
 			"gsr": obj['gsr'].trim(),
 			"heartrate": obj['heartrate'].trim(),
@@ -52,13 +52,6 @@ function addTimeScale(data,target) {
 			.x(function(d) { return x(d.x); })
 	    	.y(function(d) { return y(d.y); });
 
-	console.log(mainParameters.heartrate.h);
-	console.log(d3.max(config.data));
-
-	// anomalyHigh = [{'x': 0,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
-	// anomalyLow = [{'x': 0,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
-	
-	console.log(anomalyHigh);
 	svg.append("path")
 		.attr("class", "line")
 		.attr("stroke-dasharray","3,3")
@@ -198,14 +191,8 @@ function createLineChart(config) {
 			.attr("d",anomalyLine(anomalyData));
 	}
 
-	// addAnomalyLine(svg,90);
 	addAnomalyLine(svg,mainParameters.heartrate.h);
 	addAnomalyLine(svg,mainParameters.heartrate.l);
-	// addAnomalyLine(svg,30);
-
-	console.log(mainParameters.heartrate.h);
-	
-	
 }
 
 function getWeekData(field) {
@@ -224,11 +211,12 @@ function getDayData(start,end, field) {
 	var day = [];
 	// console.log(start);
 	// console.log(end);
+	// console.log("Day    "+start);
 	$.each(mainData, function(i,d) {
 		if (parseInt(d.date_epoch.trim()) >= start && parseInt(d.date_epoch.trim()) < end) {
 			var t = {}
 			t[field] = d[field].trim();
-			t['date_human'] = d['date'].trim();
+			t['date_human'] = d['date_human'].trim();
 			t['date_epoch'] = parseInt(d['date_epoch'].trim());
 			day.push(t);
 		}
@@ -239,6 +227,7 @@ function getDayData(start,end, field) {
 
 function createWeekHeartRate() {
 	var week = getWeekData('heartrate');
+	console.log(week);
 	var dayConfig;
 	$.each(week, function(i,d) {
 		dayConfig = createConfigFile(d,'#heartRate','hr'+i,'heartrate','heartrate');
@@ -247,6 +236,7 @@ function createWeekHeartRate() {
 }
 
 function buildHeartRateScale() {
+	d3.select("#heartRate.scale").append("svg")
 
 }
 
