@@ -64,6 +64,32 @@ svg {
 	
 }
 
+/** Time Scale ***/
+
+.timeAxis path,
+.timeAxis line {
+    fill: none;
+    stroke: black;
+    shape-rendering: crispEdges;
+}
+
+.timeAxis text {
+	font-size: 10px;
+}
+
+.timeAxis .tick:hover {
+	cursor: pointer;
+}
+
+.timeScale {
+	margin-left: 80px;
+	width: 100%;
+}
+
+/*.tickLabel {
+	text-anchor: start !important;
+}*/
+
 /*** Heart Rate charts ***/
 #heartRate {
 	display: none;
@@ -71,7 +97,7 @@ svg {
 }
 
 #heartRate .scale {
-	min-height: 50px;
+	background-color: ghostwhite;
 }
 
 .heartrate {

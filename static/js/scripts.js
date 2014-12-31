@@ -1,20 +1,18 @@
-var data;
+var data, cleanData;
 var fields = ["airTemp","calories","date","epoch","gsr","heartrate","skinTemp","steps"]
 
 $(document).ready( function() {
 	data = loadData();
-
-
-	buildHeartRateScale();
+	cleanData = cleanData(data['1'])
+	showHeartRateWeek();
 });
 
 function loadData() {
-	var dataDict = {}
+	var dataDict = {};
 	$.each(mainData, function(i,obj) {
 		if (dataDict[obj['id'].trim()] === undefined) {
 			dataDict[obj['id'].trim()] = [];
 		}
-
 
 		dataDict[obj['id'].trim()].push({
 			"airTemp": obj['airTemp'].trim(),
@@ -26,9 +24,27 @@ function loadData() {
 			"skinTemp": obj['skinTemp'].trim(),
 			"steps": obj['steps'].trim()
 		});
-	})
+	});
 	return dataDict;
 }
+
+function cleanData(data) {
+	var clean = {};
+	for (var i = 0; i<= 1439 ; i++) {
+		clean[i] = '';
+	}
+
+	var min;
+	$.each(data,function(i,d) {
+		min = (d.epoch%3600)/60;
+		hour = new Date(d.date).getHours()
+		minday = (hour*60)+min;
+		clean[minday] = d;
+	});
+
+	return clean;
+}
+
 
 function buildMainTable() {
 	var scan = mainData[0];
@@ -36,34 +52,17 @@ function buildMainTable() {
 	$("#mainTableBody").append()
 }
 
+
 var mainParameters = {
 	'heartrate': {
 		'h': 90,
-		'l': 60
+		'l': 60,
+		'interval' : 5 //in minutes
 	}
 }
 
-function addTimeScale(data,target) {
-	d3.select('#'+target).append('svg')
-		.attr("width", width + margin.left + margin.right)
-	    .attr("height", height + margin.top + margin.bottom)
-
-	var anomalyLine = d3.svg.line()
-			.x(function(d) { return x(d.x); })
-	    	.y(function(d) { return y(d.y); });
-
-	svg.append("path")
-		.attr("class", "line")
-		.attr("stroke-dasharray","3,3")
-		.attr("d",anomalyLine(anomalyHigh));
-
-	svg.append("path")
-		.attr("class", "line")
-		.attr("stroke-dasharray","3,3")
-		.attr("d",anomalyLine(anomalyLow));
-}
-
 function createConfigFile(data,target,id,className,field) {
+	var configData = setConfigData(data,field);
 	return {
 		target: target,
 		id: id,
@@ -74,30 +73,90 @@ function createConfigFile(data,target,id,className,field) {
 			'bottom': 0,
 			'left': 5
 		},
-		day: getDateDay(data[1]),
+		day: getDateDay(data[0]),
 		width: 800,
 		height: 60,
-		data: setConfigData(data,field),
+		data: configData,
 		interpolate: 'basis',
 		xAxisData: '',
-		yAxisData: ''
+		yAxisData: '',
+		anomalies: getDataAnomalies(data)
 	}
 }
 
+function getDataAnomalies(data) {
+	var temp = [];
+	var high = false;
+	var low = false;
+	var prev;
+	var anomalies = { high:[], low:[]};
+	$.each(data, function(i,d) {
+		if (d.heartrate > mainParameters.heartrate.h) {
+			if (low) {
+				temp.push(data[i-1])
+				anomalies.low.push(temp);
+				temp = [];
+				low = false;
+			}
+
+			if (!high) {
+				temp.push(d);
+				high = true;
+			}
+		}
+		else {
+			if (high) {
+				if (temp[0].date_epoch != data[i-1].date_epoch) {
+					temp.push(data[i-1])	
+				}
+				anomalies.high.push(temp);
+				temp = [];
+				high = false;
+			}
+		}
+		
+		if (d.heartrate < mainParameters.heartrate.l) {
+			if (high) {
+				temp.push(data[i-1])
+				anomalies.high.push(temp);
+				temp = [];
+				high = false;
+			}
+
+			if (!low) {
+				temp.push(d);
+				low = true;
+			}
+		}
+		else {
+			if (low) {
+				if (temp[0].date_epoch != data[i-1].date_epoch) {
+					temp.push(data[i-1]);
+				}
+				anomalies.low.push(temp);
+				temp = [];
+				low = false;
+			}
+		}
+	})
+	return anomalies;
+}
+
 function getDateDay(date) {
-	
 	var weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-	d = new Date(date['date_human']);
-	// console.log(date);
+	var d = new Date(date['date_human']);
 	return weekdays[d.getDay()];
 }
+
 
 function setConfigData(data,field) {
 	var configData = []
 	$.each(data, function(i,d) {
-		if (d.date_epoch%200 == 0) {
-			if (d[field] === 'None') {	
-				configData.push('');
+		//selects intervals of minutes (600 = 10 mins, 300 = 5 mins, etc...)
+		var time = new Date(d.date_human);
+		if (time.getMinutes()%mainParameters.heartrate.interval == 0) {
+			if (d[field] === 'None' || d.date_epoch =="") {	
+				configData.push("0");
 			}
 			else {
 				configData.push(d[field]);
@@ -106,6 +165,7 @@ function setConfigData(data,field) {
 	});
 	return configData;
 }	
+
 
 function createLineChart(config) {
 	var margin = {
@@ -118,9 +178,10 @@ function createLineChart(config) {
 
 	var parseDate = d3.time.format("%Y-%m-%d").parse;
 
+	console.log(config.data.length);
 	var x = d3.scale.linear()
 		.domain([0,config.data.length])
-	    .range([15, width-20]);
+	    .range([0, width]);
 
 	var y = d3.scale.linear()
 		.domain([0,110])
@@ -156,11 +217,11 @@ function createLineChart(config) {
 	  .append("g")
 	    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-	svg.append("g")
-	  .attr("class", "y axis")
-	  .call(yAxis)
+	// svg.append("g")
+	//   .attr("class", "y axis")
+	//   .call(yAxis);
 
-	.append("text")
+	svg.append("text")
 	  .attr("transform", "rotate(-90)")
 	  .attr("y", 6)
 	  .attr("dy", ".71em")
@@ -168,16 +229,8 @@ function createLineChart(config) {
 
 	svg.append("path")
 	  .datum(config.data)
-	  // .data(config.data)
 	  .attr("class", "line")
 	  .attr("d", line);
-
-	var anomalyLine = d3.svg.line()
-			.x(function(d) { return x(d.x); })
-	    	.y(function(d) { return y(d.y); });
-
-	// anomalyHigh = [{'x': 0,'y':mainParameters.heartrate.h},{'x': config.data.length,'y':mainParameters.heartrate.h}];
-	// anomalyLow = [{'x': 0,'y':mainParameters.heartrate.l},{'x': config.data.length,'y':mainParameters.heartrate.l}];
 
 	var anomalyLine = d3.svg.line()
 			.x(function(d) { return x(d.x); })
@@ -193,41 +246,58 @@ function createLineChart(config) {
 
 	addAnomalyLine(svg,mainParameters.heartrate.h);
 	addAnomalyLine(svg,mainParameters.heartrate.l);
+
+	console.log(config.anomalies);
+	console.log();
 }
+
 
 function getWeekData(field) {
 	var week = [];	 
-	var start = parseInt('1402495200');
-	var end = start + 61200;
+	var start = parseInt('1401951600');
+	var end = start + 86400;
 	for (var i = 0; i<7; i++) {
 		week.push(getDayData(start,end,field));
 		start = end;
-		end = end +61200;
+		end = end +86400;
 	}
 	return week;
 }
 
+
 function getDayData(start,end, field) {
+	
+	var clean = {};
+	for (var i = 0; i<= 1439 ; i++) {
+		clean[i] = {
+			field : 0,
+			date_human: '',
+			date_epoch: ''
+		};
+	}
+	var min;
 	var day = [];
-	// console.log(start);
-	// console.log(end);
-	// console.log("Day    "+start);
 	$.each(mainData, function(i,d) {
 		if (parseInt(d.date_epoch.trim()) >= start && parseInt(d.date_epoch.trim()) < end) {
 			var t = {}
 			t[field] = d[field].trim();
 			t['date_human'] = d['date_human'].trim();
 			t['date_epoch'] = parseInt(d['date_epoch'].trim());
-			day.push(t);
+			
+			minday = (new Date(t['date_human']).getHours() *60) + ((t['date_epoch']%3600)/60)
+			clean[minday] = t;
 		}
 	});
+
+	$.map(clean, function(obj,k) {
+		day.push(obj);
+	})
 	return day;
 }
 
 
 function createWeekHeartRate() {
 	var week = getWeekData('heartrate');
-	console.log(week);
 	var dayConfig;
 	$.each(week, function(i,d) {
 		dayConfig = createConfigFile(d,'#heartRate','hr'+i,'heartrate','heartrate');
@@ -235,16 +305,59 @@ function createWeekHeartRate() {
 	})
 }
 
-function buildHeartRateScale() {
-	d3.select("#heartRate.scale").append("svg")
 
+function buildTimeScale(data) {
+	var x = d3.scale.linear()
+		.domain([0,24])
+	    .range([5, 800]);
+
+	var xAxis = d3.svg.axis()
+	    .scale(x)
+	    .ticks(data.length)
+	    .tickSize(10,1)
+
+	var svg = d3.select("#heartRate").append("div")
+				.attr("class","scale")
+				.append("svg")
+					.attr("class", "axis")
+					.attr("class", "timeScale")
+					.attr("width", 790)
+					.attr("height", 65)
+	svg.append("g")
+		.attr("class","timeAxis")
+		.attr("transform", "translate(0,40)")
+		.call(xAxis)
+		.selectAll("text")
+			.attr("class","tickLabel")
+			.attr("transform","translate(0,-50)");
+
+	svg.selectAll(".domain")
+		.attr("stroke","gray")
+		.style('fill','none');
+
+	// Adjusts the size of the vertical ticks from the scale
+	svg.selectAll(".tick line")
+		.attr("transform","translate(0,-20)")
+		.attr("y2",40)
+
+	// Removes the first tick line from the scale (when 0:00 hrs of the day)
+	svg.select(".tick line")
+		.attr("y2",0)
+
+	//Changing the scale labels
+	var scaleLabels =["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
+	$.each($(".tick text"),function(i,d) {
+		$(d).html(scaleLabels[i]);
+	})
+
+	
 }
 
 function showHeartRateWeek() {
 	$("#heartRate").html('');
 	$("#heartRate").toggle();
 	
+	buildTimeScale([7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6]);
 	createWeekHeartRate();
-
 }
 
