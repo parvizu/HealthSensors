@@ -118,6 +118,19 @@ svg {
 	text-align: center;
 }
 
-.chartDayArea {
+.chartDayHeader h2 {
+	margin: 2px;
+}
 
+.chartDayHeader span {
+	font-size: 10pt;
+
+}
+
+/*.chartDayArea svg {
+	fill: black;
+}*/
+
+.heartAnomaly {
+	opacity: 0.15;
 }

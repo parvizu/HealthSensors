@@ -1,6 +1,15 @@
 var data, cleanData;
 var fields = ["airTemp","calories","date","epoch","gsr","heartrate","skinTemp","steps"]
 
+var mainParameters = {
+	'heartrate': {
+		'h': 90,
+		'l': 60,
+		'interval' : 10, //in minutes
+		'showAnomalies': false
+	}
+}
+
 $(document).ready( function() {
 	data = loadData();
 	cleanData = cleanData(data['1'])
@@ -52,15 +61,6 @@ function buildMainTable() {
 	$("#mainTableBody").append()
 }
 
-
-var mainParameters = {
-	'heartrate': {
-		'h': 90,
-		'l': 60,
-		'interval' : 5 //in minutes
-	}
-}
-
 function createConfigFile(data,target,id,className,field) {
 	var configData = setConfigData(data,field);
 	return {
@@ -74,6 +74,7 @@ function createConfigFile(data,target,id,className,field) {
 			'left': 5
 		},
 		day: getDateDay(data[0]),
+		date: new Date(data[0].date_human),
 		width: 800,
 		height: 60,
 		data: configData,
@@ -84,6 +85,11 @@ function createConfigFile(data,target,id,className,field) {
 	}
 }
 
+/*
+	Function that processes the data for one day and then detects the moments when the heart rate was over or under the defined parameters.
+
+	@returns Object that includes two arrays: One array of pairs of data values (beginning and end) of the moments above the normal range. Another array with the same structure but for moments under the normal range.
+*/
 function getDataAnomalies(data) {
 	var temp = [];
 	var high = false;
@@ -93,13 +99,16 @@ function getDataAnomalies(data) {
 	$.each(data, function(i,d) {
 		if (d.heartrate > mainParameters.heartrate.h) {
 			if (low) {
-				temp.push(data[i-1])
+				prev = data[i-1];
+				prev['id'] = (i-1);
+				temp.push(prev);
 				anomalies.low.push(temp);
 				temp = [];
 				low = false;
 			}
 
 			if (!high) {
+				d['id'] =i;
 				temp.push(d);
 				high = true;
 			}
@@ -107,7 +116,9 @@ function getDataAnomalies(data) {
 		else {
 			if (high) {
 				if (temp[0].date_epoch != data[i-1].date_epoch) {
-					temp.push(data[i-1])	
+					prev = data[i-1];
+					prev['id'] = (i-1);
+					temp.push(prev);	
 				}
 				anomalies.high.push(temp);
 				temp = [];
@@ -117,13 +128,16 @@ function getDataAnomalies(data) {
 		
 		if (d.heartrate < mainParameters.heartrate.l) {
 			if (high) {
-				temp.push(data[i-1])
+				prev = data[i-1];
+				prev['id'] = (i-1);
+				temp.push(prev);
 				anomalies.high.push(temp);
 				temp = [];
 				high = false;
 			}
 
 			if (!low) {
+				d['id'] =i;
 				temp.push(d);
 				low = true;
 			}
@@ -131,7 +145,9 @@ function getDataAnomalies(data) {
 		else {
 			if (low) {
 				if (temp[0].date_epoch != data[i-1].date_epoch) {
-					temp.push(data[i-1]);
+					prev = data[i-1];
+					prev['id'] = (i-1);
+					temp.push(prev);
 				}
 				anomalies.low.push(temp);
 				temp = [];
@@ -142,6 +158,9 @@ function getDataAnomalies(data) {
 	return anomalies;
 }
 
+/*
+	Simple function that analizes the date and returns the name of the day of the week.
+*/
 function getDateDay(date) {
 	var weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 	var d = new Date(date['date_human']);
@@ -178,14 +197,13 @@ function createLineChart(config) {
 
 	var parseDate = d3.time.format("%Y-%m-%d").parse;
 
-	console.log(config.data.length);
 	var x = d3.scale.linear()
 		.domain([0,config.data.length])
 	    .range([0, width]);
 
 	var y = d3.scale.linear()
 		.domain([0,110])
-	    .range([height-5, 5]);
+	    .range([height-5, 0]);
 
 	var xAxis = d3.svg.axis()
 	    .scale(x)
@@ -199,13 +217,19 @@ function createLineChart(config) {
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return y(d); });
 
-	d3.select(config.target).append('div')
+	var dayHeader = d3.select(config.target).append('div')
 			.attr("id",config.id)
 			.attr("class",config.className)
 		.append('div')
 			.attr("class","chartDayHeader")
-		.append('h2')
+		.append('div')
+		
+	dayHeader.append('h3')
 		.text(config.day);
+		
+	// This would add the month and day underneath the day of the week	
+	// dayHeader.append('span')
+	// 	.text((config.date.getMonth()+1) +"/"+config.date.getDate());
 		
 	d3.select(config.target+" #"+config.id)
 		.append('div')
@@ -217,6 +241,7 @@ function createLineChart(config) {
 	  .append("g")
 	    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+	// Adds the Y-Axis to the chart. Not need for the hear rate.
 	// svg.append("g")
 	//   .attr("class", "y axis")
 	//   .call(yAxis);
@@ -233,8 +258,8 @@ function createLineChart(config) {
 	  .attr("d", line);
 
 	var anomalyLine = d3.svg.line()
-			.x(function(d) { return x(d.x); })
-	    	.y(function(d) { return y(d.y); });
+		.x(function(d) { return x(d.x); })
+    	.y(function(d) { return y(d.y); });
 
 	var addAnomalyLine = function(svg,value) {
 		anomalyData = [{'x': 0,'y':value},{'x': config.data.length,'y':value}];
@@ -247,9 +272,46 @@ function createLineChart(config) {
 	addAnomalyLine(svg,mainParameters.heartrate.h);
 	addAnomalyLine(svg,mainParameters.heartrate.l);
 
-	console.log(config.anomalies);
-	console.log();
+	var addAnomaliesToChart = function(anomalies, type) {
+		$.each(anomalies, function(i,d) {
+			if (d.length>1) {
+				svg.append("rect")
+					.attr({
+						"x": function() { 
+							var ax = x(d[0].id/mainParameters.heartrate.interval); 
+							return ax; 
+						},
+						"y": function() {
+							if (type != "h")
+								return y(mainParameters.heartrate.l);
+							else 
+								return 0;
+						},
+						"width": function() { 
+							var w = x(d[1].id - d[0].id);
+							return w; 
+						},
+						"height": function() {
+							if (type != "h") 
+								return y(mainParameters.heartrate.l);
+							else
+								return y(mainParameters.heartrate.h);
+						},
+						"class": "heartAnomaly"
+					})
+			}
+		})
+	}
+
+	if (mainParameters.heartrate.showAnomalies) {
+		addAnomaliesToChart(config.anomalies.high,"h");
+		addAnomaliesToChart(config.anomalies.low,"l");		
+	}
+
+
 }
+
+
 
 
 function getWeekData(field) {
