@@ -83,31 +83,48 @@ svg {
 
 .timeScale {
 	margin-left: 80px;
-	width: 100%;
+	/*width: 100%;*/
 }
 
 /*.tickLabel {
 	text-anchor: start !important;
 }*/
 
-/*** Heart Rate charts ***/
-#heartRate {
-	display: none;
+.subsection {
+	/*background-color: blue;*/
 	width: 900px;
 }
 
-#heartRate .scale {
+.subsection .dayChart {
 	background-color: ghostwhite;
+	margin: 2px;
+	margin-top: 0px;
+	border-radius: 3px;	
+	width: 900px;
 }
 
-.heartrate {
+.chartDayArea {
+	width:800px;
+}
+
+/*** Heart Rate charts ***/
+#heartRate {
+	display: none;
+}
+
+.subsection .scale {
+	background-color: ghostwhite;
+	width: 100%;
+}
+
+/*.heartrate {
 	background-color: ghostwhite;
 	margin: 2px;
 	border-radius: 3px;	
 	
-}
+}*/
 
-.heartrate div {
+.subsection div {
 	display: inline-block;
 	vertical-align: top;
 }
@@ -118,6 +135,19 @@ svg {
 	text-align: center;
 }
 
-.chartDayArea {
+.chartDayHeader h2 {
+	margin: 2px;
+}
 
+.chartDayHeader span {
+	font-size: 10pt;
+
+}
+
+/*.chartDayArea svg {
+	fill: black;
+}*/
+
+.heartAnomaly {
+	opacity: 0.15;
 }
