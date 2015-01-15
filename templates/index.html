@@ -48,112 +48,25 @@
 		<div id="gantt" class="section">
 			<h1>October</h1>
 			<div class="ganttSide">
-				<div onclick="showHeartRateWeek(); return false;">Heart Rate</div>
-				<div onclick="showPhysicalActivityWeek(); return false;" >Physical Activity</div>
-				<div>Sleep Quality</div>
-				<div>Blood Oxygen</div>
+				<div class="dayMenu"><a href="" onclick="advanceTime(-6);return false;"><<</a>  <a href="" onclick="advanceTime(-1);return false;"><</a></div>
+				<div class="measurement" onclick="showHeartRateWeek(); return false;">Heart Rate</div>
+				<div class="measurement" onclick="showPhysicalActivityWeek(); return false;" >Physical Activity</div>
+				<div class="measurement" >Sleep Quality</div>
+				<div class="measurement" >Blood Oxygen</div>
 				
-				<div>Respiration</div>
+				<div class="measurement" >Respiration</div>
 				
 			</div>
-			<div class="chartContent">
-				<!-- <div id="ganttWeek">
-					<div class="ganttDay">
-						<h3>Sat</h3>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-					</div>
-					<div class="ganttDay">
-						<h3>Sun</h3>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-					</div>
-					<div class="ganttDay">
-						<h3>Mon</h3>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-					</div>
-					<div class="ganttDay">
-						<h3>Tue</h3>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-					</div>
-					<div class="ganttDay">
-						<h3>Wed</h3>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-						<div class="measure">
-							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
-						</div>
-					</div>
-				</div> -->
+			<div class="chartContent"></div>
+			<div id="rightSideGantt">
+				<div class="dayMenu"><a href="" onclick="advanceTime(1);return false;">></a>  <a href="" onclick="advanceTime(6);return false;">>></a></div>
 			</div>
+			
 		</div>
 		Change Interval <input type="text" id="interval">
 		<input type="button" id="changeInterval" value="Change">
 		<div id="breakdown" class="section">
+			<div id="breakdownHeader"><h3></h3></div>
 			<div id="monthly"></div>
 			<div id="heartRate" class="subsection"></div>
 			
@@ -169,7 +82,6 @@
 
 </body>
 <script type="text/javascript" src="../static/js/data.js"></script>
-<script type="text/javascript" src="../static/js/oneday.js"></script>
-<script type="text/javascript" src="../static/js/daytwo.js"></script>
+<script type="text/javascript" src="../static/js/user13.js"></script>
 <script type="text/javascript" src="../static/js/scripts.js"></script>
 </html>

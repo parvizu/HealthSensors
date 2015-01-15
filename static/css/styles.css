@@ -1,5 +1,5 @@
 body {
-	background-color: black;
+	/*background-color: black;*/
 }
 
 #container {
@@ -12,9 +12,10 @@ body {
 	background-color: white;
 }
 
- .section {
+.section {
 	border-radius: 4px;
-	padding: 3px;
+	/*padding: 3px;*/
+	background-color: white;
 }
 
 table td 
@@ -24,8 +25,8 @@ table td
 
 
 #gantt {
-	background-color: lightgray;
-	margin: 5px;
+	/*background-color: lightgray;*/
+	/*margin: 5px;*/
 }
 
 .ganttDay {
@@ -40,9 +41,9 @@ table td
 	border-bottom: solid 1px gray;
 }
 
-.ganttDay:nth-child(1) {
+/*.ganttDay:nth-child(1) {
 	background-color: lightgray;
-}
+}*/
 
 .ganttDay .measure {
 	padding-top: 15px;
@@ -71,7 +72,7 @@ table td
 
 #gantt .chartContent {
 	min-height: 100px;
-	width: 780px;
+	/*width: 780px;*/
 	vertical-align: top;
 
 }
@@ -81,19 +82,20 @@ table td
 }
 
 .ganttSide {
-	margin-top: 35px;
+	/*margin-top: 35px;*/
 }
 
-.ganttSide div {
+.ganttSide .measurement {
 	padding: 5px;
 	margin:5px;
 	font-size: 12pt;
 	margin-bottom: 20px;
+	margin-top: 17px;
 	border-radius: 5px;
 }
-.ganttSide div:hover {
+.ganttSide .measurement:hover {
 	cursor: pointer;
-	background-color: silver;
+	background-color: whitesmoke;
 }
 
 .gantt .dayHeader {
@@ -111,6 +113,45 @@ path.line
 svg {
 	
 }
+
+#rightSideGantt {
+	display: inline-block;
+	vertical-align: top;
+	text-align: left;
+}
+
+.dayMenu {
+	text-align: right;
+	font-size: 12pt;
+	font-weight: bold;
+	margin-bottom: 0px;
+	margin-top: 4px;
+}
+
+.dayMenu a {
+	text-decoration: none;
+	background-color: whitesmoke;
+	width: 20px;
+	padding: 3px;
+	border: thin solid lightgray;
+	border-radius: 3px;
+	color: gray;
+}
+
+.dayMenu a:hover {
+	background-color: lightgray;	
+}
+
+/** Overall Breakdown details **/
+#breakdownHeader {
+	text-align: center;
+}
+
+#breakdownHeader h3 {
+	text-align: center;
+	margin:10px;
+}
+
 
 /** Time Scale ***/
 
@@ -141,14 +182,16 @@ svg {
 .subsection {
 	/*background-color: blue;*/
 	width: 900px;
+	margin:3px;
 }
 
 .subsection .dayChart {
-	background-color: ghostwhite;
+	/*background-color: white;*/
 	margin: 2px;
-	margin-top: 0px;
-	border-radius: 3px;	
+	/*margin-top: 0px;*/
+	border-radius: 2px;	
 	width: 900px;
+	height: 50px;
 }
 
 .chartDayArea {
@@ -161,7 +204,7 @@ svg {
 }
 
 .subsection .scale {
-	background-color: ghostwhite;
+	/*background-color: white;*/
 	width: 100%;
 }
 
@@ -192,9 +235,15 @@ svg {
 
 }
 
-.chartDayArea svg {
-	/*background-color: black;*/
+.chartDayArea svg, #gantt svg {
+	background-color: whitesmoke;
+	border: thin solid lightgray;
+	border-radius: 2px;
 }
+
+/*.chartDayArea svg {
+	border-radius: 2px;
+}*/
 
 .heartAnomaly {
 	opacity: 0.15;
