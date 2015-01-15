@@ -9,7 +9,7 @@ body {
 }
 
 #mainData {
-	background-color: silver;
+	background-color: white;
 }
 
  .section {
@@ -28,6 +28,37 @@ table td
 	margin: 5px;
 }
 
+.ganttDay {
+	display: inline-block;
+	padding: 0px;
+	border-left: solid 1px gray;
+	border-right: solid 1px gray;
+	text-align: center;
+}
+
+.ganttDay h3 {
+	border-bottom: solid 1px gray;
+}
+
+.ganttDay:nth-child(1) {
+	background-color: lightgray;
+}
+
+.ganttDay .measure {
+	padding-top: 15px;
+	padding-bottom: 15px;
+	width:80px;
+}
+
+.ganttDay .timeblock {
+	width:10px;
+	height:20px;
+	margin: 1px;
+	background-color: gray;
+	display: inline-block;
+}
+
+
 .section h1 {
 	padding: 5px;
 	text-align: center;
@@ -41,6 +72,7 @@ table td
 #gantt .chartContent {
 	min-height: 100px;
 	width: 780px;
+	vertical-align: top;
 
 }
 
@@ -48,10 +80,26 @@ table td
 	display: inline-block;
 }
 
+.ganttSide {
+	margin-top: 35px;
+}
+
 .ganttSide div {
-	padding: 10px;
+	padding: 5px;
 	margin:5px;
-	font-size: 14pt;
+	font-size: 12pt;
+	margin-bottom: 20px;
+	border-radius: 5px;
+}
+.ganttSide div:hover {
+	cursor: pointer;
+	background-color: silver;
+}
+
+.gantt .dayHeader {
+	color: black;
+	font-size: 12;
+	font-family: helvetica;
 }
 
 path.line
@@ -144,9 +192,9 @@ svg {
 
 }
 
-/*.chartDayArea svg {
-	fill: black;
-}*/
+.chartDayArea svg {
+	/*background-color: black;*/
+}
 
 .heartAnomaly {
 	opacity: 0.15;
