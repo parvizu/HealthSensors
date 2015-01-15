@@ -1,11 +1,13 @@
 var mainData, cleanData;
 var fields = ["airTemp","calories","date","epoch","gsr","heartrate","skinTemp","steps"]
+var fullWeekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var oficialNames = {
 	'heartrate' : 'Heart Rate',
 	'steps' : 'Physical Activity',
 	'calories' : 'Calories',
 	'airTemp' : 'Air Temperature',
-	'skinTemp' : 'Skin Temperature'
+	'skinTemp' : 'Skin Temperature',
+	'dayView': 'Metrics'
 }
 
 var userConfiguration = {
@@ -27,6 +29,11 @@ var mainParameters = {
 		'showAnomalies': true
 	},
 	'steps': {},
+	'dayView' : {
+		'weekday' : 0,
+		'date': '',
+		'dayEpoch' : 0
+	},
 	'gantt' : {
 		'interval': 4 // in hours
 	},
@@ -38,7 +45,7 @@ var mainParameters = {
 }
 
 $(document).ready( function() {
-	mainData = loadData(user1);
+	mainData = loadData(user14);
 	initialize(mainData[0].date_epoch);
 
 	// TEMPORARY Uses the change button to update the interval.
@@ -111,7 +118,8 @@ function buildGantt() {
 
 	var weekdayNames = [];
 	$.each(userConfiguration.week.data, function(i,day) {
-		weekdayNames.push(getDateDay(day[0]));
+		// weekdayNames.push(getDateDay(day[0]));
+		weekdayNames.push(day[0]);
 	})
 
 	$("#gantt .chartContent").html("");
@@ -127,7 +135,8 @@ function buildGantt() {
 		.enter()
 		.append('text')
 			.text(function(d) {
-				return d;
+				// console.log(d);
+				return getDateDay(d);
 			})
 			.attr({
 				'class':'dayHeader',
@@ -137,8 +146,17 @@ function buildGantt() {
 				'x': function(d,i) {
 					return 2+(i*95)+35;
 				},
-				'y':'20'
+				'y':'20',
+				'weekday': function(d,i) {
+					return i;
+				}
+			})
+			.on({
+				'click': function (d,i) {
+					createDayCharts(i,d.date_epoch);
+				}
 			});
+
 
 	//Adding the vertical lines that divide the days
 	for (var i = 0; i<8; i++) {
@@ -663,6 +681,39 @@ function getDayData(start,end) {
 }
 
 
+function createDayCharts(start,startEpoch) {
+	$(".subsection").hide();
+	$(".subsection").html('');
+	$("#dayView").toggle();
+
+	userConfiguration.active = "dayView";
+	buildTimeScale("dayView",["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+
+	loadWeekConfigData('heartRate',userConfiguration.week.start,'hr');
+	var hrConfig = userConfiguration.week.days[start];
+	hrConfig.target = "#dayView";
+	hrConfig.height = 130;
+	createLineChart(hrConfig);
+	$("#"+hrConfig.id +" h3").html("Heart<br>Rate");
+	$("#"+hrConfig.id +" h3").addClass("dailyHeader");
+
+
+	loadWeekConfigData('steps',userConfiguration.week.start,'pa');
+	var paConfig = userConfiguration.week.days[start];
+	paConfig.target = "#dayView";
+	paConfig.height = 130;
+	createBarChart(paConfig);
+	$("#"+paConfig.id +" h3").html("Physical<br>Activity");
+	$("#"+paConfig.id +" h3").addClass("dailyHeader");
+
+	mainParameters.dayView.dayEpoch = startEpoch;
+	mainParameters.dayView.weekday = start;
+	mainParameters.dayView.date = paConfig.date;
+
+	setBreakdownHeader('daily', '');	
+}
+
+
 function buildTimeScale(target,data) {
 	var x = d3.scale.linear()
 		.domain([0,24])
@@ -721,13 +772,7 @@ function showHeartRateWeek() {
 	createWeekChart('heartRate',userConfiguration.week.start,'hr');
 }
 
-
-/*
-	This function will create the weekley breakdown on a day by day basis of a particular activity passed as a parameter. 
-
-	asd
-*/
-function createWeekChart(category,start, shortname) {
+function loadWeekConfigData(category,start,shortname) {
 	var week = getWeekData(start);
 	var max = 0;
 	userConfiguration.week.days = [];
@@ -736,7 +781,15 @@ function createWeekChart(category,start, shortname) {
 		max = getWeekMax(userConfiguration.week.days[i].data, max);
 	});
 	userConfiguration.week.maxValue = max;
-	
+}
+
+/*
+	This function will create the weekley breakdown on a day by day basis of a particular activity passed as a parameter. 
+
+	asd
+*/
+function createWeekChart(category,start, shortname) {
+	loadWeekConfigData(category,start,shortname);
 	setBreakdownHeader('week', category.toLowerCase());
 	
 	$.each(userConfiguration.week.days, function(i,config) {
@@ -867,7 +920,7 @@ function getMax(data) {
 	return Math.max.apply(Math,data);
 }
 
-/*** Main operations ***/
+/********** Main operations **********/
 
 function changeInterval(interval) {
 	mainParameters.general.interval = interval;
@@ -876,6 +929,9 @@ function changeInterval(interval) {
 	}
 	else if (userConfiguration.active == 'heartrate') {
 		showHeartRateWeek();
+	}
+	else if (userConfiguration.active == "dayView") {
+		createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);
 	}
 }
 
@@ -888,6 +944,10 @@ function setBreakdownHeader(type, field) {
 		var day2 = userConfiguration.week.days[userConfiguration.week.days.length -1].date;
 
 		title = oficialNames[userConfiguration.active] + " from "+months[day1.getMonth()] + " "+ day1.getDate() + " to "+months[day2.getMonth()] + " "+ day2.getDate();
+	}
+	else if (type == 'daily') {
+		var day = mainParameters.dayView.date;
+		title = oficialNames[userConfiguration.active] + " for " + fullWeekdays[day.getDay()] + " " + months[day.getMonth()] + " " +day.getDate();
 	}
 
 	$("#breakdownHeader h3").text(title);

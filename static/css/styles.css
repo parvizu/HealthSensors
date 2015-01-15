@@ -77,6 +77,10 @@ table td
 
 }
 
+#gantt svg text:hover {
+	cursor: pointer;
+}
+
 .ganttSide, #gantt div.chartContent {
 	display: inline-block;
 }
@@ -247,4 +251,16 @@ svg {
 
 .heartAnomaly {
 	opacity: 0.15;
+}
+
+/***** DAY VIEW ******/
+
+#dayView div {
+	height: auto;
+	margin-bottom: 10px;
+}
+
+h3.dailyHeader {
+	font-size: 11pt;
+	padding-top: 20px;
 }
