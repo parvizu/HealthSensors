@@ -48,15 +48,111 @@
 		<div id="gantt" class="section">
 			<h1>October</h1>
 			<div class="ganttSide">
-				<div><a href="" onclick="showHeartRateWeek(); return false;" >Heart Rate</a></div>
-				<div>Blood Oxygen</div>
-				<div><a href="" onclick="showPhysicalActivityWeek(); return false;" >Physical Activity</a></div>
-				<div>Respiration</div>
+				<div onclick="showHeartRateWeek(); return false;">Heart Rate</div>
+				<div onclick="showPhysicalActivityWeek(); return false;" >Physical Activity</div>
 				<div>Sleep Quality</div>
+				<div>Blood Oxygen</div>
+				
+				<div>Respiration</div>
+				
 			</div>
-			<div class="chartContent"></div>
+			<div class="chartContent">
+				<!-- <div id="ganttWeek">
+					<div class="ganttDay">
+						<h3>Sat</h3>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+					</div>
+					<div class="ganttDay">
+						<h3>Sun</h3>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+					</div>
+					<div class="ganttDay">
+						<h3>Mon</h3>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+					</div>
+					<div class="ganttDay">
+						<h3>Tue</h3>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+					</div>
+					<div class="ganttDay">
+						<h3>Wed</h3>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+						<div class="measure">
+							<div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div><div class="timeblock"></div>
+						</div>
+					</div>
+				</div> -->
+			</div>
 		</div>
-
+		Change Interval <input type="text" id="interval">
+		<input type="button" id="changeInterval" value="Change">
 		<div id="breakdown" class="section">
 			<div id="monthly"></div>
 			<div id="heartRate" class="subsection"></div>
