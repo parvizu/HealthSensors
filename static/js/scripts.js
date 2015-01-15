@@ -1,5 +1,12 @@
-var data, cleanData;
+var mainData, cleanData;
 var fields = ["airTemp","calories","date","epoch","gsr","heartrate","skinTemp","steps"]
+var oficialNames = {
+	'heartrate' : 'Heart Rate',
+	'steps' : 'Physical Activity',
+	'calories' : 'Calories',
+	'airTemp' : 'Air Temperature',
+	'skinTemp' : 'Skin Temperature'
+}
 
 var userConfiguration = {
 	'week':{
@@ -31,10 +38,8 @@ var mainParameters = {
 }
 
 $(document).ready( function() {
-	data = loadData();
-	getWeekData('1401951600');
-
-	buildGantt();
+	mainData = loadData(user1);
+	initialize(mainData[0].date_epoch);
 
 	// TEMPORARY Uses the change button to update the interval.
 	$("#changeInterval").on("click", function() {
@@ -44,22 +49,26 @@ $(document).ready( function() {
 		}
 		$("#interval").text("");
 	})
-
-
 });
 
-function loadData() {
-	var dataDict = {};
-	$.each(mainData, function(i,obj) {
-		if (dataDict[obj['id'].trim()] === undefined) {
-			dataDict[obj['id'].trim()] = [];
-		}
+function initialize(start) {
+	getWeekData(start);
+	buildGantt();
+}
 
-		dataDict[obj['id'].trim()].push({
+function loadData(file) {
+	var dataDict = [];
+	$.each(file, function(i,obj) {
+		// if (dataDict[obj['id'].trim()] === undefined) {
+		// 	dataDict[obj['id'].trim()] = [];
+		// }
+
+		// dataDict[obj['id'].trim()].push({
+		dataDict.push({
 			"airTemp": obj['airTemp'].trim(),
 			"calories": obj['calories'].trim(),
-			"date": obj['date_human'].trim(),
-			"epoch": obj['date_epoch'].trim(),
+			"date_human": obj['date_human'].trim(),
+			"date_epoch": parseInt(obj['date_epoch'].trim()),
 			"gsr": obj['gsr'].trim(),
 			"heartrate": obj['heartrate'].trim(),
 			"skinTemp": obj['skinTemp'].trim(),
@@ -108,7 +117,7 @@ function buildGantt() {
 	$("#gantt .chartContent").html("");
 	var svg = d3.select('#gantt .chartContent').append('svg')
 				.attr({
-					'width': 700,
+					'width': 680,
 					'height': 300
 				});
 
@@ -126,7 +135,7 @@ function buildGantt() {
 				'font-family': 'Helvetica',
 				'font-size': '15px',
 				'x': function(d,i) {
-					return (i*95)+35;
+					return 2+(i*95)+35;
 				},
 				'y':'20'
 			});
@@ -135,8 +144,8 @@ function buildGantt() {
 	for (var i = 0; i<8; i++) {
 		svg.append('line')
 			.attr({
-				'x1': 1+(i*95)+i,
-				'x2': 1+(i*95)+i,
+				'x1': 3+(i*95)+i,
+				'x2': 3+(i*95)+i,
 				'y1': 10,
 				'y2': 280,
 				'stroke-width': .5,
@@ -146,8 +155,8 @@ function buildGantt() {
 	//Adding the horizontal line that separates the day name
 	svg.append('line')
 		.attr({
-			'x1': 1,
-			'x2': 673,
+			'x1': 3,
+			'x2': 675,
 			'y1': 30,
 			'y2': 30,
 			'stroke-width': .5,
@@ -198,7 +207,7 @@ function buildGantt() {
 					'width':blockWidth,
 					'height':25,
 					'x': function(d,i) {
-						return 1+(i*blockWidth)+(i);
+						return 4+(i*blockWidth)+(i);
 					},
 					'y': 40+y,
 					'fill': function(d) {
@@ -211,11 +220,11 @@ function buildGantt() {
 
 			values = [];
 		}
-		console.log(field + ":" + getMax(vals));
+		// console.log(field + ":" + getMax(vals));
 	}
 
-	$.each(Object.keys(userConfiguration.week.data[0][0]), function(i,key) {
-		if (key == 'steps' || key == 'heartrate' || key =='calories')
+	$.each(['heartrate','steps','calories','gsr','skinTemp'], function(i,key) {
+		// if (key == 'steps' || key == 'heartrate' || key =='calories')
 		addMeasurementBlocks(key,i*50);
 	});
 
@@ -337,8 +346,9 @@ function createConfigFile(data,target,id,className,field) {
 		},
 		day: getDateDay(data[0]),
 		date: new Date(data[0].date_human),
+		epoch: data[0].date_epoch,
 		width: 800,
-		height: 60,
+		height: 45,
 		data: configData.simple,
 		interpolate: 'basis',
 		xAxisData: '',
@@ -540,7 +550,7 @@ function createLineChart(config) {
 	  .datum(config.data)
 	  .attr("class", "line")
 	  .attr("d", line)
-	  // .attr("transform","translate("+x(1)+")");
+	  .attr("transform","translate("+(x(1)-1)+")");
 
 	var anomalyLine = d3.svg.line()
 		.x(function(d) { return x(d.x); })
@@ -603,7 +613,7 @@ function createLineChart(config) {
 function getWeekData(start) {
 	var week = [];	 
 	var start = parseInt(start);
-	if (start != userConfiguration.week.start) {
+	if (start != 0) {
 		userConfiguration.week.start = start;
 		var end = start + 86400;
 		for (var i = 0; i<7; i++) {
@@ -640,20 +650,9 @@ function getDayData(start,end) {
 	var minday; //minute of the day
 	var day = [];
 	$.each(mainData, function(i,d) {
-		if (parseInt(d.date_epoch.trim()) >= start && parseInt(d.date_epoch.trim()) < end) {
-			var t = {
-				'heartrate' : d['heartrate'].trim(),
-				'steps': d['steps'].trim(),
-				'calories': d['calories'].trim(),
-				'gsr': d['gsr'].trim(),
-				'skinTemp': d['skinTemp'].trim(),
-				'airTemp': d['airTemp'].trim(),
-				'date_human': d['date_human'].trim(),
-				'date_epoch': parseInt(d['date_epoch'].trim())
-			};
-			
-			minday = (new Date(t['date_human']).getHours() *60) + ((t['date_epoch']%3600)/60)
-			clean[minday] = t;
+		if (parseInt(d.date_epoch) >= start && parseInt(d.date_epoch) < end) {
+			minday = (new Date(d['date_human']).getHours() *60) + ((d['date_epoch']%3600)/60)
+			clean[minday] = d;
 		}
 	});
 
@@ -719,7 +718,7 @@ function showHeartRateWeek() {
 	$("#heartRate").toggle();
 	
 	buildTimeScale('heartRate',[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-	createWeekChart('heartRate','1401951600','hr');
+	createWeekChart('heartRate',userConfiguration.week.start,'hr');
 }
 
 
@@ -738,6 +737,8 @@ function createWeekChart(category,start, shortname) {
 	});
 	userConfiguration.week.maxValue = max;
 	
+	setBreakdownHeader('week', category.toLowerCase());
+	
 	$.each(userConfiguration.week.days, function(i,config) {
 		if (shortname === 'pa') {
 			createBarChart(config);
@@ -747,7 +748,6 @@ function createWeekChart(category,start, shortname) {
 		}
 	})
 }
-
 
 function getWeekMax(data, current) {
 	var m = Math.max.apply(Math,data);
@@ -767,7 +767,7 @@ function showPhysicalActivityWeek() {
 	// $("#steps").html('');
 	$("#steps").toggle();
 	buildTimeScale('steps',[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-	createWeekChart('steps','1401951600','pa');
+	createWeekChart('steps',userConfiguration.week.start,'pa');
 }
 
 
@@ -868,6 +868,7 @@ function getMax(data) {
 }
 
 /*** Main operations ***/
+
 function changeInterval(interval) {
 	mainParameters.general.interval = interval;
 	if (userConfiguration.active == 'steps') {
@@ -879,4 +880,41 @@ function changeInterval(interval) {
 }
 
 
+function setBreakdownHeader(type, field) {
+	var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+	var title = '';
+	if(type == 'week') {
+		var day1 = userConfiguration.week.days[0].date;
+		var day2 = userConfiguration.week.days[userConfiguration.week.days.length -1].date;
+
+		title = oficialNames[userConfiguration.active] + " from "+months[day1.getMonth()] + " "+ day1.getDate() + " to "+months[day2.getMonth()] + " "+ day2.getDate();
+	}
+
+	$("#breakdownHeader h3").text(title);
+}
+
+function advanceTime(period) {
+	if (period == 1)
+		period = 86400;
+	else if (period == 6)
+		period = 604800;
+	else if (period == -6)
+		period = -604800;
+	else if (period == -1)
+		period = -86400;
+	
+	userConfiguration.week.start = userConfiguration.week.start +period;	
+
+	// console.log("Current: " +parseInt(userConfiguration.week.start));
+	// console.log("New: " + userConfiguration.week.days[period].epoch);
+
+	initialize(userConfiguration.week.start);
+
+	if (userConfiguration.active == 'heartrate') {
+		showHeartRateWeek();
+	}
+	else if (userConfiguration.active == 'steps') {
+		showPhysicalActivityWeek();
+	}
+}
 
