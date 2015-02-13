@@ -10,7 +10,7 @@ var oficialNames = {
 	'skinTemp' : 'Skin Temperature',
 	'dayView': 'Metrics'
 }
-
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var userConfiguration = {
 	'week':{
 		'start': 0,
@@ -25,8 +25,8 @@ var userConfiguration = {
 
 var mainParameters = {
 	'heartrate': {
-		'h': 80,
-		'l': 55,
+		'h': 80, // Gets overridden during init
+		'l': 55, // Gets overridden during init
 		'showAnomalies': true
 	},
 	'steps': {},
@@ -37,6 +37,7 @@ var mainParameters = {
 	},
 	'gantt' : {
 		'width': 700,
+		'height': 190,
 		'anomalyThreshold': 10, // number of consecutive anomalous minutes that trigger anomaly color
 		'interval': 120 // in minutes
 	},
@@ -61,7 +62,8 @@ var chartConfigurations = {
 		},
 		'charts': {
 			'width': 800,
-			'height': 45,
+			'height': 25,
+			'zoomHeight': 65,
 			'margin': {
 				'left': 30,
 				'top': 0,
@@ -72,19 +74,58 @@ var chartConfigurations = {
 	}
 };
 
-$(document).ready( function() {
-	mainData = loadData(user14);
-	initialize(mainData[0].date_epoch);
+var annotateConfigurations = {
+	'color': "#980002"
+}
 
-	// TEMPORARY Uses the change button to update the interval.
-	$("#changeInterval").on("click", function() {
-		var interval = $("#interval").val();	
-		if ($.isNumeric(interval) &&interval >0 && interval <=60 && interval !== '') {
-			changeInterval(interval);
-		}
-		$("#interval").text("");
+var userid;
+var dbNotes;
+
+$(document).ready( function() {
+	// Make sure to change both lines below when switching between users
+	userid = 14;
+	mainData = loadData(user14);
+
+	// Load notes
+	url = 'getinit/' + String(userid);
+	var request = $.ajax({
+		type: "GET",
+		url: url
 	})
+
+	request.done(function(data) {
+		// Init values loaded.
+		initValues = JSON.parse(data);
+		dbNotes = JSON.parse(initValues['notes']);
+		dbSettings = JSON.parse(initValues['settings']);
+		setSettings(dbSettings);
+
+		// Initialize visualization
+		initialize(mainData[0].date_epoch);
+
+		// TEMPORARY Uses the change button to update the interval.
+		$("#changeInterval").on("click", function() {
+			var interval = $("#interval").val();	
+			if ($.isNumeric(interval) &&interval >0 && interval <=60 && interval !== '') {
+				changeInterval(interval);
+			}
+			$("#interval").text("");
+		})
+	
+	});
+
+	request.fail(function() {
+		alert("Failed to load annotation data");
+	});
+
 });
+
+function setSettings(dbSettings) {
+	mainParameters.heartrate.h = parseFloat(dbSettings['high']);
+	mainParameters.heartrate.l = parseFloat(dbSettings['low']) ;   
+	$("#hr-high").val(dbSettings['high']);
+	$("#hr-low").val(dbSettings['low']);
+}
 
 function initialize(start) {
 	getWeekData(start);
@@ -109,6 +150,7 @@ function loadData(file) {
 			"skinTemp": obj['skinTemp'].trim(),
 			"steps": obj['steps'].trim()
 		});
+		// TODO: Make use of the following code
 		if (minEpoch == -1 & maxEpoch == -1) {
 			minEpoch = epoch;
 			maxEpoch = epoch;
@@ -160,11 +202,13 @@ function buildGantt() {
 		weekdayNames.push(day[0]);
 	})
 
+	setGanttHeader(weekdayNames)
+
 	$("#gantt .chartContent").html("");
 	var svg = d3.select('#gantt .chartContent').append('svg')
 				.attr({
-					'width': 680,
-					'height': 300
+					'width': mainParameters.gantt.width - 20,
+					'height': mainParameters.gantt.height
 				});
 
 	// Adding the day headers
@@ -180,9 +224,8 @@ function buildGantt() {
 				'class':'dayHeader',
 				'fill': 'black',
 				'font-family': 'Helvetica',
-				'font-size': '15px',
 				'x': function(d,i) {
-					return 2+(i*95)+35;
+					return 2+(i*95)+41;
 				},
 				'y':'20',
 				'weekday': function(d,i) {
@@ -226,13 +269,13 @@ function buildGantt() {
 		Inner function that will create and append to the Gantt Svg the group of block for each measurement
 	*/
 	function addMeasurementBlocks(field,y) {
-		var vals = [];
-		$.map(weekData, function(obj,k) {
-			if (obj[field] =='None') 
-				vals.push(0)
-			else
-				vals.push(parseInt(obj[field]));
-		})
+		// var vals = [];
+		// $.map(weekData, function(obj,k) {
+		// 	if (obj[field] =='None') 
+		// 		vals.push(0)
+		// 	else
+		// 		vals.push(parseInt(obj[field]));
+		// })
 
 		var color = d3.scale.linear()
 			.domain([0,100])
@@ -266,24 +309,24 @@ function buildGantt() {
 				.append('rect')
 				.attr({
 					'width':blockWidth,
-					'height':25,
+					'height':blockWidth,
 					'x': function(d,i) {
 						return 4+(i*blockWidth)+(i);
 					},
 					'y': 40+y,
 					'fill': function(d) {
 						//return color(d['value']);
-						fillVal = 0;
+						fillVal = "#e9e9e9"; // 0
 						if (d['value'] > 50) { // percent of interval that is nonnull values
 							if (parseInt(d['anomalies']['maxConsecutive']) > mainParameters.gantt.anomalyThreshold) {
 								// Anomalous block
-								fillVal = 100;
+								fillVal = "red";
 							} else {
 								// Regular block
-								fillVal = 30;
+								fillVal = "#777";
 							}
 						}
-						return color(fillVal);
+						return fillVal; //color(fillVal);
 					},
 					'value': function(d) {
 						return d['value']
@@ -292,12 +335,11 @@ function buildGantt() {
 
 			values = [];
 		}
-		// console.log(field + ":" + getMax(vals));
 	}
 
 	$.each(['heartrate','steps','calories','gsr','skinTemp'], function(i,key) {
 		// if (key == 'steps' || key == 'heartrate' || key =='calories')
-		addMeasurementBlocks(key,i*50);
+		addMeasurementBlocks(key, i*33);
 	});
 }
 
@@ -332,7 +374,6 @@ function getNonNullMeasurement(data, interval, field) {
 					// If there are two or more consecutive anomalies, we consider that a chain.  That chain is now broken.
 					maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
 					consecutiveAnomalies = 0;
-					console.log(minute/60 + ": " + maxConsecutiveAnomalies);
 				}
 			}
 		}
@@ -562,9 +603,9 @@ function getDataAnomalies(data,field) {
 					low = false;
 				}
 			}
+
 		});
 	}
-	
 	return anomalies;
 }
 
@@ -623,25 +664,63 @@ function setConfigData(data,field) {
 	return configData;
 }	
 
+/*
+* Get the max or min of an array that may contain strings
+*/
+function minMaxMixedArray(array) {
+	var minValue;
+	var maxValue;
+	for (var i = 0; i < array.length; i++) {
+		if ($.isNumeric(array[i])) {
+			var val = parseFloat(array[i]);
+			if (minValue === undefined || maxValue === undefined) {
+				minValue = val;
+				maxValue = val;
+			}
+			if (val < minValue) {
+				minValue = val;
+			}
+			if (val > maxValue) {
+				maxValue = val;
+			}
+		}
+	}
+	return [minValue, maxValue];
+}
 
 function createLineChart(config) {
 	var margin = {
-					top: config.margin.top, 
-					right: config.margin.right, 
-					bottom: config.margin.bottom, 
-					left: config.margin.left},
+			top: config.margin.top, 
+			right: config.margin.right, 
+			bottom: config.margin.bottom, 
+			left: config.margin.left
+		},
 	    width = config.width;
 	    height = config.height;
 
 	var parseDate = d3.time.format("%Y-%m-%d").parse;
 
 	var x = d3.scale.linear()
-		.domain([0,config.data.length])
+		.domain([0, config.data.length])
 	    .range([0, width]);
 
+	var xInverse = d3.scale.linear()
+		.domain([0, width])
+	    .range([0,config.data.length]);	
+	
+	var minMaxValue = minMaxMixedArray(config.data);
+	if (minMaxValue[0] === undefined || minMaxValue[1] === undefined) {
+		minMaxValue[0] = 0;
+		minMaxValue[1] = 110; // 110 max blood pressure
+	}
+
 	var y = d3.scale.linear()
-		.domain([0,110])
+		.domain(minMaxValue) 
 	    .range([height, 0]);
+
+	var yZoom = d3.scale.linear()
+		.domain(minMaxValue)
+		.range([chartConfigurations.dayView.charts.zoomHeight, 0]);
 
 	var xAxis = d3.svg.axis()
 	    .scale(x)
@@ -651,10 +730,13 @@ function createLineChart(config) {
 	    .scale(y)
 	    .orient("left");
 
-	//var line = d3.svg.line().interpolate(config.interpolate)
 	var line = d3.svg.line().defined(function(d) { return d != 'None'})
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return y(d); });
+
+	var lineZoom = d3.svg.line().defined(function(d) { return d != 'None'})
+	    .x(function(d,i) { return x(i); })
+	    .y(function(d) { return yZoom(d); });
 
 	getDayHeadersForWeeklyCharts(config.target,config.id,config.className,config.day);
 		
@@ -662,91 +744,381 @@ function createLineChart(config) {
 	// dayHeader.append('span')
 	// 	.text((config.date.getMonth()+1) +"/"+config.date.getDate());
 		
-	d3.select(config.target+" #"+config.id)
+	d3.select(config.target + " #" + config.id)
 		.append('div')
 			.attr("class","chartDayArea");
 
-	var svg = d3.select("#"+config.id+" .chartDayArea").append("svg")
-	    .attr("width", width + margin.left + margin.right)
+	// Create SVGs for day line charts (zoomed and all-day)
+	var dayContainer = d3.select("#" + config.id + " .chartDayArea");
+
+	var svgZoom = dayContainer.append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
+		.attr("class", "lineChartZoom")
+		.append("g")
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+	var svg = dayContainer.append("svg")
+		.attr("width", width + margin.left + margin.right)
 	    .attr("height", height + margin.top + margin.bottom)
-	  .append("g")
-	    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+	    .attr("class", "lineChart")
+	    .attr("style", "cursor: crosshair")
+	  	.append("g")
+	    	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-	// Adds the Y-Axis to the chart. Not need for the hear rate.
-	// svg.append("g")
-	//   .attr("class", "y axis")
-	//   .call(yAxis);
+	// Make background rectangle to handle mouse events
+	svg.append("rect")
+		.attr("width", width + margin.left + margin.right)
+	    .attr("height", height + margin.top + margin.bottom)
+	    .attr("fill", "#FFFFFF");
 
-	svg.append("text")
-	  .attr("transform", "rotate(-90)")
-	  .attr("y", 6)
-	  .attr("dy", ".71em")
-	  .style("text-anchor", "end");
+	// Make zoom selection rectangle
+	svg.append("rect")
+		.attr("class", "rectZoom")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+		.attr("fill", "#EEE");
+
+	// svg.append("text")
+	//   .attr("transform", "rotate(-90)")
+	//   .attr("y", 6)
+	//   .attr("dy", ".71em")
+	//   .style("text-anchor", "end");
 
 	svg.append("path")
-	  .datum(config.data)
-	  .attr("class", "line")
-	  .attr("d", line)
-	  .attr("transform","translate("+(x(1)-1)+")");
+		.datum(config.data)
+		.attr("class", "line")
+		.attr("d", line)
+		.attr("transform","translate("+(x(1)-1)+")");
+
+	svgZoom.append("path")
+		.datum(config.data)
+		.attr("class", "lineZoom")
+		.attr("d", lineZoom)
+		.attr("transform","translate("+(x(1)-1)+")");
+
 
 	var anomalyLine = d3.svg.line()
 		.x(function(d) { return x(d.x); })
     	.y(function(d) { return y(d.y); });
 
-	var addAnomalyLine = function(svg,value) {
-		// Add line
-		anomalyData = [{'x': 0,'y':value},{'x': config.data.length,'y':value}];
-		svg.append("path")
-			.attr("class", "line")
-			.attr("stroke-dasharray","1,2")
-			.attr("d",anomalyLine(anomalyData));
+    var anomalyLineZoom = d3.svg.line()
+		.x(function(d) { return x(d.x); })
+    	.y(function(d) { return yZoom(d.y); });
 
-		// Add label
-		svg.append("text")
-			.attr("y", y(value) + 2)
-			.attr("x", 15 - chartConfigurations.dayView.charts.margin.left)
-			.attr("class", "dayViewLabel")
-			.text(value);
-	}
-
-	addAnomalyLine(svg,mainParameters.heartrate.h);
-	addAnomalyLine(svg,mainParameters.heartrate.l);
-
-	var addAnomaliesToChart = function(anomalies, type) {
-		$.each(anomalies, function(i,d) {
-			if (d.length>1) {
-				svg.append("rect")
-					.attr({
-						"x": function() { 
-							// var ax = x(d[0].id/mainParameters.general.interval); 
-							return x(d[0].id); 
-						},
-						"y": function() {
-							if (type != "h")
-								return y(mainParameters.heartrate.l);
-							else 
-								return 0;
-						},
-						"width": function() { 
-							var w = x(d[1].id - d[0].id);
-							return w; 
-						},
-						"height": function() {
-							if (type != "h") 
-								return y(mainParameters.heartrate.l);
-							else
-								return y(mainParameters.heartrate.h);
-						},
-						"class": "heartAnomaly"
-					})
-			}
-		})
-	}
+	AddAnomalyLine(config,svg,mainParameters.heartrate.h, anomalyLine, y);
+	AddAnomalyLine(config,svg,mainParameters.heartrate.l, anomalyLine, y);
+	AddAnomalyLine(config,svgZoom,mainParameters.heartrate.h, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svgZoom,mainParameters.heartrate.l, anomalyLineZoom, yZoom);
 
 	if (mainParameters.heartrate.showAnomalies) {
-		addAnomaliesToChart(config.anomalies.high,"h");
-		addAnomaliesToChart(config.anomalies.low,"l");		
+		AddAnomaliesToChart(svg, config.anomalies.high,"h", x, y);
+		AddAnomaliesToChart(svg, config.anomalies.low,"l", x, y);
+		AddAnomaliesToChart(svgZoom, config.anomalies.high,"h", x, yZoom);
+		AddAnomaliesToChart(svgZoom, config.anomalies.low,"l", x, yZoom);
 	}
+
+	// Handle zooming
+  	svg.on("mousedown", function() {
+  		// Store x-value
+  		var rect = d3.select(this);
+  		var xDown = d3.mouse(this)[0];
+  		var xNow;
+  		var parent = d3.select(this.parentNode);
+  		rectZoom = parent.select(".rectZoom");
+  		rectZoom.attr("transform", "translate(" + xDown + ",0)");
+  		rectZoom.attr("width", 0)
+  		var selectionWidth;
+  		
+  		var w = d3.select(window)
+      		.on("mousemove", mousemove)
+      		.on("mouseup", mouseup);
+
+  		d3.event.preventDefault(); // disable text dragging
+
+  		function mousemove() {
+  			xNow = d3.mouse(rect.node())[0];
+  			selectionWidth = Math.abs(xNow - xDown);
+  			if (xNow < xDown) {
+  				// Selection was made from right to left
+  				rectZoom.attr("transform", "translate(" + xNow + ",0)");
+  			}
+  			
+  			if (selectionWidth > 0) {
+  				rectZoom.attr("width", selectionWidth)
+  			}
+  			
+  		}
+
+  		function mouseup() {
+    		w.on("mousemove", null).on("mouseup", null);
+    		if (xNow !== undefined) {
+	    		// Refresh zoomed chart
+	    		minIndex = Math.floor(xInverse(Math.min(xDown, xNow)));
+				maxIndex = Math.floor(xInverse(Math.max(xDown, xNow)));
+				// TODO: we're assuming here that every index is a minute of data
+				zoomData = config.data.slice(minIndex,maxIndex);
+
+				anomaliesLow = AnomaliesSubset(minIndex,maxIndex,config.anomalies.low);
+				anomaliesHigh = AnomaliesSubset(minIndex,maxIndex,config.anomalies.high);
+				
+	    		RefreshZoomChart(zoomData, config, lineZoom, yZoom, anomaliesLow, anomaliesHigh);
+    		} else {
+    			// Clear rectangle and reset zoom
+  				rectZoom.attr("transform", "translate(0,0)")
+  				rectZoom.attr("width", width + margin.left + margin.right)
+    			RefreshZoomChart(config.data, config, lineZoom, yZoom, config.anomalies.low, config.anomalies.high)
+    		}
+  		}
+	});
+}
+
+function AddAnomalyLine(config,svg,value,line, y) {
+	// Add line
+	anomalyData = [{'x': 0,'y':value},{'x': config.data.length,'y':value}];
+	svg.append("path")
+		.attr("class", "line")
+		.attr("stroke-dasharray","1,2")
+		.attr("d",line(anomalyData));
+
+	// Add label
+	svg.append("text")
+		.attr("y", y(value) + 2)
+		.attr("x", 15 - chartConfigurations.dayView.charts.margin.left)
+		.attr("class", "dayViewLabel")
+		.text(value);
+}
+
+function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
+	$.each(anomalies, function(i,d) {
+		if (d.length>1) {
+			targetSvg.append("rect")
+				.attr("x", function() {
+					return x(d[0].id);
+				})
+				.attr("y", function() {
+					if (type != "h") {
+						return y(mainParameters.heartrate.l);
+					} else {
+						return 0;
+					}
+				})
+				.attr("width", function() {
+					var w = x(d[1].id - d[0].id);
+					return w;
+				})
+				.attr("height", function() {
+					if (type != "h") {
+						return y(mainParameters.heartrate.l);
+					} else {
+						return y(mainParameters.heartrate.h);
+					}
+				})
+				.attr("fill", function() {
+					if (isAnnotated(d[0])) {
+						return annotateConfigurations.color
+					} else {
+						return "#555555"
+					}
+				})
+				.attr("class", "heartAnomaly")
+				.on("mousedown", function() {
+					openAnomalyDialog(d, this);
+ 				});
+		}
+	});
+}
+
+function isAnnotated(d) {
+	return (getAnnotation(d) != '');
+}
+
+function getAnnotation(d) {
+	if (dbNotes.length > 0) {
+		for (i = 0; i < dbNotes.length; i++) {
+			if (dbNotes[i].key.epoch == d.date_epoch) {
+				return dbNotes[i].value
+			}
+		}
+		return ''
+	} else {
+		return ''
+	}
+}
+
+function openAnomalyDialog(d, rect) {
+	rectangle = d3.select(rect);
+
+	// If anomaly has already been annotated, show it
+	$( "#notes" ).val(getAnnotation(d[0]));
+	
+	var dialog, form,
+	notes = $( "#notes" ),
+	allFields = $( [] ).add( notes ),
+	tips = $( ".validateTips" );
+	
+	function updateTips( t ) {
+		tips
+		.text( t )
+		.addClass( "ui-state-highlight" );
+		setTimeout(function() {
+			tips.removeClass( "ui-state-highlight", 1500 );
+		}, 500 );
+	}
+
+	function checkLength( o, n, min, max ) {
+		if ( o.val().length > max || o.val().length < min ) {
+			o.addClass( "ui-state-error" );
+			updateTips( "Length of " + n + " must be between " +
+				min + " and " + max + "." );
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+    function checkRegexp( o, regexp, n ) {
+		if ( !( regexp.test( o.val() ) ) ) {
+			o.addClass( "ui-state-error" );
+			updateTips( n );
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+	function addNote() {
+		var valid = true;
+		allFields.removeClass( "ui-state-error" );
+		valid = valid && checkLength( notes, "notes", 1, 500 );
+		// TODO: validate to avoid XSS atacks
+		// valid = valid && checkRegexp( notes, /^([0-9a-zA-Z''])+$/, "Notes field only allows : a-z 0-9" );
+		
+		if ( valid ) {
+
+			// Create object to post
+			var values = {
+    			'key': {
+    				'userid': userid,
+					'epoch': d[0]['date_epoch']
+				},
+    			'value': notes.val()
+    		};
+
+			var request = $.ajax({
+				type: "POST",
+				url: '/addnote',
+				contentType: "application/json",
+				data: JSON.stringify(values),
+				datatype: String
+			})
+
+			request.done(function(notes) {
+				rectangle.attr("fill", annotateConfigurations.color);
+				dbNotes = JSON.parse(notes)
+			});
+
+			request.fail(function() {
+				alert("Request failed")
+			});
+
+			dialog.dialog( "close" );
+		}
+		return valid;
+	}
+
+	dialog = $( "#dialog" ).dialog({
+		autoOpen: true,
+		height: 300,
+		width: 350,
+		modal: true,
+		buttons: {
+			"Create note": addNote,
+			Cancel: function() {
+				dialog.dialog( "close" );
+			}
+		},
+		close: function() {
+			form[ 0 ].reset();
+			allFields.removeClass( "ui-state-error" );
+			tips.text("");
+		}
+	});
+
+	form = dialog.find( "form" ).on( "submit", function( event ) {
+		event.preventDefault();
+		addNote();
+	});
+
+}
+
+function AnomaliesSubset(minIndex,maxIndex,anomalies) {
+	var anomaliesSubset = [];
+	var newAnomaly;
+	$.each(anomalies, function(i,d) {
+		if (d.length>1) {
+			if (d[0].id >= minIndex && d[0].id <= maxIndex) {
+				newAnomaly = JSON.parse(JSON.stringify(d));
+				if (d[1].id > maxIndex) {
+					newAnomaly[0].id -= minIndex 
+					newAnomaly[1].id = maxIndex - minIndex;
+					anomaliesSubset.push(newAnomaly);
+				} else {
+					newAnomaly[0].id -= minIndex;
+					newAnomaly[1].id -= minIndex;
+					anomaliesSubset.push(newAnomaly);
+				}
+			} else if (d[1].id >= minIndex && d[1].id <= maxIndex) {
+				newAnomaly = JSON.parse(JSON.stringify(d));
+				newAnomaly[0].id = 0;
+				newAnomaly[1].id -= minIndex;
+				anomaliesSubset.push(newAnomaly);
+			} else if (d[0].id <= minIndex && d[1].id >= maxIndex) {
+				newAnomaly = JSON.parse(JSON.stringify(d));
+				newAnomaly[0].id = 0;
+				newAnomaly[1].id = maxIndex - minIndex;
+				anomaliesSubset.push(newAnomaly);
+			} else {
+
+			}
+		}
+	});
+	return anomaliesSubset	
+}
+
+/*
+	Function that refreshes the zoomed line chart to show the data within the latest zoom bounds
+*/
+function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
+
+	// Reset the scale for the zoomed line
+	var x = d3.scale.linear()
+		.domain([0, data.length])
+	    .range([0, config.width]);
+
+	// Create a new line with the new scale
+	var line = d3.svg.line().defined(function(d) { return d != 'None'})
+	    .x(function(d,i) { return x(i); })
+	    .y(function(d) { return y(d); });
+
+	// Select the zoomed line
+	svgZoom = d3.select("#" + config.id + " div svg.lineChartZoom g");
+	lineZoom = svgZoom.select("path.lineZoom");
+	
+	// Update the zoomed line data
+	lineZoom
+		.data([data])
+		.attr("d", line);
+
+	// Remove anomalies
+	svgZoom.selectAll("rect").remove();
+
+	// Add anomalies
+	if (mainParameters.heartrate.showAnomalies) {
+		AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", x, y);
+		AddAnomaliesToChart(svgZoom, anomaliesLow, "l", x, y);
+	}
+
 }
 
 
@@ -921,6 +1293,7 @@ function loadWeekConfigData(category,start,shortname) {
 	asd
 */
 function createWeekChart(category,start, shortname) {
+	$("#changeIntervalSection").show();
 	loadWeekConfigData(category,start,shortname);
 	setBreakdownHeader('week', category.toLowerCase());
 	
@@ -1080,20 +1453,27 @@ function changeInterval(interval) {
 
 
 function setBreakdownHeader(type, field) {
-	var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+	
 	var title = '';
 	if(type == 'week') {
 		var day1 = userConfiguration.week.days[0].date;
 		var day2 = userConfiguration.week.days[userConfiguration.week.days.length -1].date;
 
-		title = oficialNames[userConfiguration.active] + " from "+months[day1.getMonth()] + " "+ day1.getDate() + " to "+months[day2.getMonth()] + " "+ day2.getDate();
+		title = oficialNames[userConfiguration.active] + " from "+ MONTHS[day1.getMonth()] + " "+ day1.getDate() + " to "+ MONTHS[day2.getMonth()] + " "+ day2.getDate();
 	}
 	else if (type == 'daily') {
 		var day = mainParameters.dayView.date;
-		title = oficialNames[userConfiguration.active] + " for " + fullWeekdays[day.getDay()] + " " + months[day.getMonth()] + " " +day.getDate();
+		title = oficialNames[userConfiguration.active] + " for " + fullWeekdays[day.getDay()] + " " + MONTHS[day.getMonth()] + " " +day.getDate();
 	}
 
 	$("#breakdownHeader h3").text(title);
+}
+
+function setGanttHeader(oneWeek) {
+	var day1 = new Date(oneWeek[0].date_human);
+	var day2 = new Date(oneWeek[oneWeek.length - 1].date_human);
+	header = MONTHS[day1.getMonth()] + " " + day1.getDate() + " to " + MONTHS[day2.getMonth()] + " " + day2.getDate()
+	$("#gantt h2").text('Exercise data: ' + header);
 }
 
 function advanceTime(period) {

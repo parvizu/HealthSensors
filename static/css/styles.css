@@ -1,5 +1,6 @@
 body {
 	/*background-color: black;*/
+	font-size: 12px;
 }
 
 #container {
@@ -10,6 +11,23 @@ body {
 
 #mainData {
 	background-color: white;
+}
+
+.section table {
+	margin: 0;
+	padding: 0;
+}
+
+thead td {
+	padding-right: 5px;
+	padding-bottom: 3px;
+	border-bottom-style: solid;
+	border-bottom-width: 1px;
+	border-bottom-color: #000;
+}
+
+tbody td {
+
 }
 
 .section {
@@ -61,13 +79,18 @@ table td
 
 
 .section h1 {
-	padding: 5px;
-	text-align: center;
+	font-size: 20px;
+	margin-top: 20px;
+	margin-bottom: 30px;
+}
+
+.section h2 {
+	margin-top: 30px;
+	font-size: 16px;
 }
 
 .subsection h1 {
 	padding:3px;
-	font-size: ;
 }
 
 #gantt .chartContent {
@@ -90,11 +113,12 @@ table td
 }
 
 .ganttSide .measurement {
-	padding: 5px;
-	margin:5px;
-	font-size: 12pt;
-	margin-bottom: 20px;
-	margin-top: 17px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+	padding-right: 5px;
+	margin-right:5px;
+	margin-bottom: 2px;
+	margin-top: 8px;
 	border-radius: 5px;
 }
 .ganttSide .measurement:hover {
@@ -104,18 +128,39 @@ table td
 
 .gantt .dayHeader {
 	color: black;
-	font-size: 12;
 	font-family: helvetica;
 }
 
 path.line
 {
     fill: none;
+    stroke: #999;
+}
+
+path.lineZoom
+{
+    fill: none;
     stroke: #000;
 }
 
+/*.rectZoom {
+	opacity: 0.5;
+	fill: #CCC;
+}*/
+
 svg {
 	
+}
+textarea {width: 300px; height:100px;}
+fieldset { padding:0; border:0; margin-top:25px; }
+input.text { margin-bottom:12px; width:95%; padding: .4em; }
+label, input { display:block; }
+.ui-dialog .ui-state-error { padding: .3em; }
+.validateTips { border: 1px solid transparent; padding: 0.3em; display: none;}
+.ui-state-highlight { display: block; }
+
+#dialog {
+	display: none;
 }
 
 #rightSideGantt {
@@ -147,15 +192,15 @@ svg {
 }
 
 /** Overall Breakdown details **/
-#breakdownHeader {
-	text-align: center;
-}
 
 #breakdownHeader h3 {
-	text-align: center;
-	margin:10px;
+	margin-top:30px;
+	margin-bottom: 20px;
 }
 
+#changeIntervalSection {
+	display: none;
+}
 
 /** Time Scale ***/
 
@@ -182,7 +227,7 @@ svg {
 }
 
 .timeScale {
-	margin-left: 80px;
+	margin-left: 40px;
 	/*width: 100%;*/
 }
 
@@ -207,7 +252,7 @@ svg {
 	/*margin-top: 0px;*/
 	border-radius: 2px;	
 	width: 900px;
-	height: 50px;
+	height: 120px;
 }
 
 .chartDayArea {
@@ -237,9 +282,8 @@ svg {
 }
 
 .chartDayHeader {
-	min-width: 80px;
-	vertical-align: middle;
-	text-align: center;
+	min-width: 40px;
+	text-align: left;
 }
 
 .chartDayHeader h2 {
@@ -251,8 +295,10 @@ svg {
 
 }
 
+#gantt svg {
+	background-color: #fff;
+}
 .chartDayArea svg, #gantt svg {
-	background-color: whitesmoke;
 	border: thin solid lightgray;
 	border-radius: 2px;
 }
@@ -276,3 +322,10 @@ h3.dailyHeader {
 	font-size: 11pt;
 	padding-top: 20px;
 }
+
+#settings {
+	margin-top: 15px;
+	margin-bottom: 20px;
+}
+
+
