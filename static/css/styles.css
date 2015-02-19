@@ -123,6 +123,10 @@ table td
 }
 .ganttSide .measurement:hover {
 	cursor: pointer;
+	/*background-color: whitesmoke;*/
+}
+
+.measurement.active {
 	background-color: whitesmoke;
 }
 

@@ -1,9 +1,9 @@
 var mainData, cleanData;
 var minEpoch = -1, maxEpoch = -1;
-var fields = ["airTemp","calories","date","epoch","gsr","heartrate","skinTemp","steps"]
+var fields = ["airTemp","calories","date","epoch","gsr","hr","skinTemp","steps"]
 var fullWeekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var oficialNames = {
-	'heartrate' : 'Heart Rate',
+	'hr' : 'Heart Rate',
 	'steps' : 'Physical Activity',
 	'calories' : 'Calories',
 	'airTemp' : 'Air Temperature',
@@ -24,7 +24,7 @@ var userConfiguration = {
 }
 
 var mainParameters = {
-	'heartrate': {
+	'hr': {
 		'h': 80, // Gets overridden during init
 		'l': 55, // Gets overridden during init
 		'showAnomalies': true
@@ -86,7 +86,7 @@ $(document).ready( function() {
 	userid = 14;
 	mainData = loadData(user14);
 
-	// Load notes
+	// Load stuff from database
 	url = 'getinit/' + String(userid);
 	var request = $.ajax({
 		type: "GET",
@@ -121,8 +121,8 @@ $(document).ready( function() {
 });
 
 function setSettings(dbSettings) {
-	mainParameters.heartrate.h = parseFloat(dbSettings['high']);
-	mainParameters.heartrate.l = parseFloat(dbSettings['low']) ;   
+	mainParameters.hr.h = parseFloat(dbSettings['high']);
+	mainParameters.hr.l = parseFloat(dbSettings['low']) ;   
 	$("#hr-high").val(dbSettings['high']);
 	$("#hr-low").val(dbSettings['low']);
 }
@@ -146,7 +146,7 @@ function loadData(file) {
 			"date_human": obj['date_human'].trim(),
 			"date_epoch": epoch,
 			"gsr": obj['gsr'].trim(),
-			"heartrate": obj['heartrate'].trim(),
+			"hr": obj['hr'].trim(),
 			"skinTemp": obj['skinTemp'].trim(),
 			"steps": obj['steps'].trim()
 		});
@@ -185,7 +185,7 @@ function cleanData(data) {
 
 function buildMainTable() {
 	var scan = mainData[0];
-	var str = "<td>Mr. John Doe</td><td>"+scan['heartrate']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['heartrate']+"</td><td></td>"
+	var str = "<td>Mr. John Doe</td><td>"+scan['hr']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['hr']+"</td><td></td>"
 	$("#mainTableBody").append()
 }
 
@@ -282,7 +282,7 @@ function buildGantt() {
 			.range(['white','black']);
 
 		var values =[];
-		if (field == 'heartrate') {
+		if (field == 'hr') {
 			//values = getAverageMeasurement(weekData,mainParameters.gantt.interval,field);
 			values = getNonNullMeasurement(weekData,mainParameters.gantt.interval,field);
 		} else if (field == 'steps') {
@@ -337,7 +337,7 @@ function buildGantt() {
 		}
 	}
 
-	$.each(['heartrate','steps','calories','gsr','skinTemp'], function(i,key) {
+	$.each(['hr','steps','calories','gsr','skinTemp'], function(i,key) {
 		// if (key == 'steps' || key == 'heartrate' || key =='calories')
 		addMeasurementBlocks(key, i*33);
 	});
@@ -806,12 +806,12 @@ function createLineChart(config) {
 		.x(function(d) { return x(d.x); })
     	.y(function(d) { return yZoom(d.y); });
 
-	AddAnomalyLine(config,svg,mainParameters.heartrate.h, anomalyLine, y);
-	AddAnomalyLine(config,svg,mainParameters.heartrate.l, anomalyLine, y);
-	AddAnomalyLine(config,svgZoom,mainParameters.heartrate.h, anomalyLineZoom, yZoom);
-	AddAnomalyLine(config,svgZoom,mainParameters.heartrate.l, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svg,mainParameters.hr.h, anomalyLine, y);
+	AddAnomalyLine(config,svg,mainParameters.hr.l, anomalyLine, y);
+	AddAnomalyLine(config,svgZoom,mainParameters.hr.h, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svgZoom,mainParameters.hr.l, anomalyLineZoom, yZoom);
 
-	if (mainParameters.heartrate.showAnomalies) {
+	if (mainParameters.hr.showAnomalies) {
 		AddAnomaliesToChart(svg, config.anomalies.high,"h", x, y);
 		AddAnomaliesToChart(svg, config.anomalies.low,"l", x, y);
 		AddAnomaliesToChart(svgZoom, config.anomalies.high,"h", x, yZoom);
@@ -898,7 +898,7 @@ function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
 				})
 				.attr("y", function() {
 					if (type != "h") {
-						return y(mainParameters.heartrate.l);
+						return y(mainParameters.hr.l);
 					} else {
 						return 0;
 					}
@@ -909,9 +909,9 @@ function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
 				})
 				.attr("height", function() {
 					if (type != "h") {
-						return y(mainParameters.heartrate.l);
+						return y(mainParameters.hr.l);
 					} else {
-						return y(mainParameters.heartrate.h);
+						return y(mainParameters.hr.h);
 					}
 				})
 				.attr("fill", function() {
@@ -1114,7 +1114,7 @@ function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
 	svgZoom.selectAll("rect").remove();
 
 	// Add anomalies
-	if (mainParameters.heartrate.showAnomalies) {
+	if (mainParameters.hr.showAnomalies) {
 		AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", x, y);
 		AddAnomaliesToChart(svgZoom, anomaliesLow, "l", x, y);
 	}
@@ -1154,7 +1154,7 @@ function getDayData(start,end) {
 	var clean = {};
 	for (var i = 0; i<= 1439 ; i++) {
 		clean[i] = {
-			heartrate : 0,
+			hr : 0,
 			steps: 0,
 			calories: 0,
 			gsr: 0,
@@ -1188,7 +1188,7 @@ function createDayCharts(start,startEpoch) {
 	userConfiguration.active = "dayView";
 	buildTimeScale("dayView",["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
 
-	loadWeekConfigData('heartRate',userConfiguration.week.start,'hr');
+	loadWeekConfigData('hr',userConfiguration.week.start);
 	var hrConfig = userConfiguration.week.days[start];
 	hrConfig.target = "#dayView";
 	hrConfig.height = 130;
@@ -1197,7 +1197,7 @@ function createDayCharts(start,startEpoch) {
 	$("#"+hrConfig.id +" h3").addClass("dailyHeader");
 
 
-	loadWeekConfigData('steps',userConfiguration.week.start,'pa');
+	loadWeekConfigData('steps',userConfiguration.week.start);
 	var paConfig = userConfiguration.week.days[start];
 	paConfig.target = "#dayView";
 	paConfig.height = 130;
@@ -1261,27 +1261,38 @@ function buildTimeScale(target,data) {
 	var scaleLabels =["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
 	$.each($(".tick text"),function(i,d) {
 		$(d).html(scaleLabels[i]);
-		// $(d).attr("x","-5");
 	});	
 }
 
+$(".measurement").click(function() {
+	// Activate menu item
+	$(".measurement").removeClass("active");
+	$(this).addClass("active");
 
-function showHeartRateWeek() {
-	userConfiguration.active = 'heartrate';
-	$(".subsection").hide();
-	$("#heartRate").html('');
-	$("#heartRate").toggle();
+	// Show measurement data (use set timeout to force above code to execute first)
+	mname = $(this).attr("class").split(' ')[1];
+	setTimeout(function() {
+		showMeasurementWeek(mname);
+	}, 1 );
 	
-	buildTimeScale('heartRate',[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-	createWeekChart('heartRate',userConfiguration.week.start,'hr');
+});
+
+function showMeasurementWeek(mname) {
+	userConfiguration.active = mname;
+	$(".subsection").hide();
+	$("#" + mname).html('');
+	$("#" + mname).toggle();
+
+	buildTimeScale(mname, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+	createWeekChart(mname, userConfiguration.week.start);
 }
 
-function loadWeekConfigData(category,start,shortname) {
+function loadWeekConfigData(category,start) {
 	var week = getWeekData(start);
 	var max = 0;
 	userConfiguration.week.days = [];
 	$.each(week, function(i,d) {
-		userConfiguration.week.days.push(createConfigFile(d,'#'+category,shortname+i,category.toLowerCase(),category.toLowerCase()));
+		userConfiguration.week.days.push(createConfigFile(d,'#'+category,category+i,category.toLowerCase(),category.toLowerCase()));
 		max = getWeekMax(userConfiguration.week.days[i].data, max);
 	});
 	userConfiguration.week.maxValue = max;
@@ -1294,14 +1305,14 @@ function loadWeekConfigData(category,start,shortname) {
 */
 function createWeekChart(category,start, shortname) {
 	$("#changeIntervalSection").show();
-	loadWeekConfigData(category,start,shortname);
+	loadWeekConfigData(category,start);
 	setBreakdownHeader('week', category.toLowerCase());
 	
 	$.each(userConfiguration.week.days, function(i,config) {
-		if (shortname === 'pa') {
+		if (category === 'steps') {
 			createBarChart(config);
 		}
-		else if (shortname === 'hr') {
+		else if (category === 'hr') {
 			createLineChart(config);	
 		}
 	})
@@ -1316,18 +1327,6 @@ function getWeekMax(data, current) {
 }
 
 /********* PHYSICAL ACTIVITY ***********/
-
-
-function showPhysicalActivityWeek() {
-	userConfiguration.active = 'steps';
-	$(".subsection").hide();
-	$("#steps").html('');
-	// $("#steps").html('');
-	$("#steps").toggle();
-	buildTimeScale('steps',[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-	createWeekChart('steps',userConfiguration.week.start,'pa');
-}
-
 
 function getDayHeadersForWeeklyCharts(target,id,className,day) {
 	var dayHeader = d3.select(target).append('div')
@@ -1440,14 +1439,10 @@ function getMax(data) {
 
 function changeInterval(interval) {
 	mainParameters.general.interval = interval;
-	if (userConfiguration.active == 'steps') {
-		showPhysicalActivityWeek();
-	}
-	else if (userConfiguration.active == 'heartrate') {
-		showHeartRateWeek();
-	}
-	else if (userConfiguration.active == "dayView") {
+	if (userConfiguration.active == "dayView") {
 		createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);
+	} else {
+		showMeasurementWeek(userConfiguration.active);
 	}
 }
 
@@ -1490,20 +1485,16 @@ function advanceTime(period) {
 	//
 	// Forbid going to day that doesn't have data
 	//
-	//
 
-	userConfiguration.week.start = userConfiguration.week.start +period;	
-
-	// console.log("Current: " +parseInt(userConfiguration.week.start));
-	// console.log("New: " + userConfiguration.week.days[period].epoch);
-
+	userConfiguration.week.start = userConfiguration.week.start + period;	
 	initialize(userConfiguration.week.start);
-
-	if (userConfiguration.active == 'heartrate') {
-		showHeartRateWeek();
-	}
-	else if (userConfiguration.active == 'steps') {
-		showPhysicalActivityWeek();
+	console.log(userConfiguration.active);
+	if (userConfiguration.active != '') {
+		if (userConfiguration.active == 'dayView') {
+			createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);	
+		} else if (userConfiguration.active != '') {
+			showMeasurementWeek(userConfiguration.active);	
+		}
 	}
 }
 
