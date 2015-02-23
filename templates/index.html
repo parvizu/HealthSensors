@@ -46,15 +46,19 @@
 			<!-- <div class="more">Expand</div> -->
 		</div>
 
+		<div id="loading">
+			<div class="spinner"></div>
+		</div>
+
 		<div id="gantt" class="section">
 			<h2></h2>
 			<div class="ganttSide">
 				<div class="dayMenu"><a href="" onclick="advanceTime(-6);return false;"><<</a>  <a href="" onclick="advanceTime(-1);return false;"><</a></div>
-				<div class="measurement hr">Heart Rate</div>
+<!-- 				<div class="measurement HR">Heart Rate</div>
 				<div class="measurement steps">Physical Activity</div>
 				<div class="measurement" >Sleep Quality</div>
 				<div class="measurement" >Blood Oxygen</div>
-				<div class="measurement" >Respiration</div>
+				<div class="measurement" >Respiration</div> -->
 				
 			</div>
 			<div class="chartContent"></div>
@@ -91,13 +95,13 @@
 	
 		<div id="breakdown" class="section">
 			<div id="breakdownHeader"><h3></h3></div>
-			<div id="monthly"></div>
-			<div id="hr" class="subsection"></div>
-			<div id="bloodOxygen"></div>
-			<div id="steps" class="subsection"></div>		
-			<div id="respiration"></div>
-			<div id="sleepQuality"></div>
-			<div id="sidebySide"></div>
+			<div id="fields">
+				<div id="HR" class="subsection"></div>
+				<div id="bloodOxygen"></div>
+				<div id="steps" class="subsection"></div>		
+				<div id="respiration"></div>
+				<div id="sleepQuality"></div>
+			</div>
 			<div id="dayView" class="subsection"></div>
 			<div id="changeIntervalSection">
 				Change Interval <input type="text" id="interval">
@@ -122,6 +126,6 @@
 </body>
 <script type="text/javascript" src="static/js/data.js"></script>
 <script type="text/javascript" src="static/js/user13.js"></script>
-<script type="text/javascript" src="static/js/user14.js"></script>
+<!--<script type="text/javascript" src="static/js/user14-edf.js"></script>-->
 <script type="text/javascript" src="static/js/scripts.js"></script>
 </html>

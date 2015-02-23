@@ -6,6 +6,7 @@ from flask import request, redirect, url_for
 from flask import make_response, current_app
 import simplejson as json
 import re
+import csv
 from datetime import timedelta
 from functools import update_wrapper
 
@@ -21,9 +22,15 @@ def index():
 
 @app.route('/getinit/<userid>', methods = ['GET'])
 def get_init(userid):
+	data = []
+	csv_file = open('data/user14-edf.csv', 'rU')
+	input_file = csv.DictReader(csv_file)
+	for row in input_file:
+		data.append(row)
+
 	notes = get_notes(userid)
 	settings = get_settings(userid)
-	return json.dumps({ 'notes': notes, 'settings': settings })
+	return json.dumps({ 'data': data, 'notes': notes, 'settings': settings })
 
 @app.route('/getnotes/<userid>', methods = ['GET'])
 def get_notes(userid):

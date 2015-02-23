@@ -1,16 +1,47 @@
 var mainData, cleanData;
-var minEpoch = -1, maxEpoch = -1;
-var fields = ["airTemp","calories","date","epoch","gsr","hr","skinTemp","steps"]
+var chartTypes = { "line": 1, "bar": 2, "other": 0 }
+var fields = {
+		'atemp': {
+			'description': 'Air Temperature',
+			'chartType': chartTypes.other,
+			'required': false,
+			'display': false
+		},
+		'time': {
+			'description': 'Time',
+			'chartType': chartTypes.other,
+			'required': true,
+			'display': false
+		},
+		'GSR': {
+			'description': 'Galvanic Skin Response',
+			'chartType': chartTypes.other,
+			'required': false,
+			'display': false
+		},
+		'HR': {
+			'description': 'Heartrate',
+			'chartType': chartTypes.line,
+			'required': false,
+			'display': true
+		},
+		'stemp': {
+			'description': 'Skin Temperature',
+			'chartType': chartTypes.other,
+			'required': false,
+			'display': false
+		},
+		'steps': {
+			'description': 'Steps',
+			'chartType': chartTypes.bar,
+			'required': false,
+			'display': true
+		}
+	};
+
 var fullWeekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-var oficialNames = {
-	'hr' : 'Heart Rate',
-	'steps' : 'Physical Activity',
-	'calories' : 'Calories',
-	'airTemp' : 'Air Temperature',
-	'skinTemp' : 'Skin Temperature',
-	'dayView': 'Metrics'
-}
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
 var userConfiguration = {
 	'week':{
 		'start': 0,
@@ -24,20 +55,20 @@ var userConfiguration = {
 }
 
 var mainParameters = {
-	'hr': {
+	'HR': {
 		'h': 80, // Gets overridden during init
 		'l': 55, // Gets overridden during init
 		'showAnomalies': true
 	},
 	'steps': {},
-	'dayView' : {
-		'weekday' : 0,
+	'dayView': {
+		'weekday': 0,
 		'date': '',
-		'dayEpoch' : 0
+		'dayEpoch': 0
 	},
 	'gantt' : {
 		'width': 700,
-		'height': 190,
+		'height': fieldsToDisplay().length * 45, //190,
 		'anomalyThreshold': 10, // number of consecutive anomalous minutes that trigger anomaly color
 		'interval': 120 // in minutes
 	},
@@ -78,13 +109,24 @@ var annotateConfigurations = {
 	'color': "#980002"
 }
 
+function fieldsToDisplay() {
+	// Make list of fields we want to display in the viz
+	var keys = [];
+	for (var k in fields) {
+		if (fields[k].display) {
+			keys.push(k);
+		}
+	}
+	return keys;
+}
+
 var userid;
 var dbNotes;
 
 $(document).ready( function() {
 	// Make sure to change both lines below when switching between users
 	userid = 14;
-	mainData = loadData(user14);
+	//mainData = loadData(user14);
 
 	// Load stuff from database
 	url = 'getinit/' + String(userid);
@@ -96,12 +138,16 @@ $(document).ready( function() {
 	request.done(function(data) {
 		// Init values loaded.
 		initValues = JSON.parse(data);
+		dbData = initValues['data'];
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
-		setSettings(dbSettings);
-
+		
 		// Initialize visualization
-		initialize(mainData[0].date_epoch);
+		mainData = loadData(dbData);
+		initialize(mainData[0].epoch);
+
+		// Assign database settings to app variables
+		setSettings(dbSettings);
 
 		// TEMPORARY Uses the change button to update the interval.
 		$("#changeInterval").on("click", function() {
@@ -121,8 +167,8 @@ $(document).ready( function() {
 });
 
 function setSettings(dbSettings) {
-	mainParameters.hr.h = parseFloat(dbSettings['high']);
-	mainParameters.hr.l = parseFloat(dbSettings['low']) ;   
+	mainParameters.HR.h = parseFloat(dbSettings['high']);
+	mainParameters.HR.l = parseFloat(dbSettings['low']) ;   
 	$("#hr-high").val(dbSettings['high']);
 	$("#hr-low").val(dbSettings['low']);
 }
@@ -135,32 +181,21 @@ function initialize(start) {
 function loadData(file) {
 	var dataDict = [];
 	$.each(file, function(i,obj) {
-		// if (dataDict[obj['id'].trim()] === undefined) {
-		// 	dataDict[obj['id'].trim()] = [];
-		// }
-		epoch = parseInt(obj['date_epoch'].trim());
-		// dataDict[obj['id'].trim()].push({
-		dataDict.push({
-			"airTemp": obj['airTemp'].trim(),
-			"calories": obj['calories'].trim(),
-			"date_human": obj['date_human'].trim(),
-			"date_epoch": epoch,
-			"gsr": obj['gsr'].trim(),
-			"hr": obj['hr'].trim(),
-			"skinTemp": obj['skinTemp'].trim(),
-			"steps": obj['steps'].trim()
-		});
-		// TODO: Make use of the following code
-		if (minEpoch == -1 & maxEpoch == -1) {
-			minEpoch = epoch;
-			maxEpoch = epoch;
+
+		datetime = new Date(obj['time'].trim());
+		epoch = datetime.getTime() / 1000.0;
+
+		datum = {};
+		for (var property in fields) {
+    		if (obj.hasOwnProperty(property)) {
+    			datum[property] = obj[property].trim();
+		   	} else if (fields[property].required) {
+		   		alert("EDF data missing required " + property + " property.")
+		   		return null;
+		   	}
 		}
-		if (epoch < minEpoch) {
-			minEpoch = epoch;
-		}
-		if (epoch > maxEpoch) {
-			maxEpoch = epoch;
-		}
+		datum['epoch'] = epoch;
+		dataDict.push(datum);
 	});
 	return dataDict;
 }
@@ -174,7 +209,7 @@ function cleanData(data) {
 	var min;
 	$.each(data,function(i,d) {
 		min = (d.epoch%3600)/60;
-		hour = new Date(d.date).getHours()
+		hour = new Date(d.date).getUTCHours()
 		minday = (hour*60)+min;
 		clean[minday] = d;
 	});
@@ -185,7 +220,7 @@ function cleanData(data) {
 
 function buildMainTable() {
 	var scan = mainData[0];
-	var str = "<td>Mr. John Doe</td><td>"+scan['hr']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['hr']+"</td><td></td>"
+	var str = "<td>Mr. John Doe</td><td>"+scan['HR']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['HR']+"</td><td></td>"
 	$("#mainTableBody").append()
 }
 
@@ -198,7 +233,6 @@ function buildGantt() {
 
 	var weekdayNames = [];
 	$.each(userConfiguration.week.data, function(i,day) {
-		// weekdayNames.push(getDateDay(day[0]));
 		weekdayNames.push(day[0]);
 	})
 
@@ -217,7 +251,6 @@ function buildGantt() {
 		.enter()
 		.append('text')
 			.text(function(d) {
-				// console.log(d);
 				return getDateDay(d);
 			})
 			.attr({
@@ -234,7 +267,7 @@ function buildGantt() {
 			})
 			.on({
 				'click': function (d,i) {
-					createDayCharts(i,d.date_epoch);
+					createDayCharts(i,d.epoch);
 				}
 			});
 
@@ -282,27 +315,36 @@ function buildGantt() {
 			.range(['white','black']);
 
 		var values =[];
-		if (field == 'hr') {
-			//values = getAverageMeasurement(weekData,mainParameters.gantt.interval,field);
+		if (fields[field].chartType == chartTypes.line) {			
 			values = getNonNullMeasurement(weekData,mainParameters.gantt.interval,field);
-		} else if (field == 'steps') {
-			values = getAggregateMeasurement(weekData,mainParameters.gantt.interval,field);
-		} else { 
-			//temporary just for testing calories and other measurements
+		} else {
 			values = getAggregateMeasurement(weekData,mainParameters.gantt.interval,field);
 		}
 		
 		var blockWidth = Math.floor(mainParameters.gantt.width/(values.length)-1);
 		if (blockWidth < 1) {
-			// Color a big block if it contains at least 5 minutes of continuous combined anomalies
 			alert("Error: Gantt block interval too small.");
 		}
-		// console.log("Blocks : "+ values.length)
-		// console.log('blockWidth: ' + blockWidth);
 		if (values.length > 0) {
+			// Add measurement headers
+			d3.select('div.ganttSide').append('div')
+				.attr('class', 'measurement ' + field)
+				.text(fields[field].description)
+				.on("click", function() {
+					// Activate menu item
+					$(".measurement").removeClass("active");
+					$(this).addClass("active");
+
+					// Show measurement data (use set timeout to force above code to execute first)
+					mname = $(this).attr("class").split(' ')[1];
+					setTimeout(function() {
+						showFieldWeek(mname);
+					}, 1 );
+				});
+				
 			// Creating and appending the rectangles that will represent the x-hour blocks of time.
 			svg.append('g')
-				.attr('class',fields)
+				.attr('class',field)
 				.selectAll('rect')
 				.data(values)
 				.enter()
@@ -315,7 +357,6 @@ function buildGantt() {
 					},
 					'y': 40+y,
 					'fill': function(d) {
-						//return color(d['value']);
 						fillVal = "#e9e9e9"; // 0
 						if (d['value'] > 50) { // percent of interval that is nonnull values
 							if (parseInt(d['anomalies']['maxConsecutive']) > mainParameters.gantt.anomalyThreshold) {
@@ -337,9 +378,18 @@ function buildGantt() {
 		}
 	}
 
-	$.each(['hr','steps','calories','gsr','skinTemp'], function(i,key) {
+	$.each(fieldsToDisplay(), function(i,key) {
 		// if (key == 'steps' || key == 'heartrate' || key =='calories')
 		addMeasurementBlocks(key, i*33);
+	});
+
+	showGantt();
+}
+
+function showGantt() {
+	$("#loading").fadeOut("fast", function() {
+		$("#gantt").fadeIn();
+		$("#settings").fadeIn();
 	});
 }
 
@@ -356,7 +406,7 @@ function getNonNullMeasurement(data, interval, field) {
 	$.each(data, function(i, d) {
 		minute = i + 1;
 		count++;
-		if (d[field] != 'None') {
+		if (d[field] != "") {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
@@ -405,57 +455,6 @@ function getNonNullMeasurement(data, interval, field) {
 	});
 	return results;
 }
-
-function getAverageMeasurement(data,interval,field) {
-	var agg =0;
-	var results = []
-	var minute;
-	var measurements =0;
-	var anomalyOver = []; 
-	var anomalyUnder = [];
-
-	$.each(data,function(i,d) {
-		minute = i+1;
-		if (d[field]!='None') {
-			var value = parseInt(d[field]);
-			agg += value;
-			measurements++;
-			if (mainParameters[field] != undefined) {
-				if (value > mainParameters[field].h) {
-					anomalyOver.push(d);
-				}
-				else if (value < mainParameters[field].l) {
-					anomalyUnder.push(d);
-				}
-			}
-		}
-
-		if (minute%interval == 0 ) {
-			var avg = 0;
-			if (measurements> 0)
-				avg = agg/measurements;
-
-			var res = {
-				'value': avg,
-				'measurements': measurements,
-				'average': avg,
-				'anomalies': {
-					'over': anomalyOver,
-					'under': anomalyUnder,
-					'total': anomalyOver.length + anomalyUnder.length
-				}
-			}
-			results.push(res);
-			
-			agg = 0;
-			measurements = 0;
-			anomalyOver= [];
-			anomalyUnder = [];
-		}
-	})
-	return results;
-}
-
 	
 function getAggregateMeasurement(data,interval,field) {
 	var agg =0;
@@ -467,7 +466,7 @@ function getAggregateMeasurement(data,interval,field) {
 
 	$.each(data,function(i,d) {
 		minute = i+1;
-		if (d[field]!='None') {
+		if (d[field]!='') {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
@@ -508,12 +507,12 @@ function getAggregateMeasurement(data,interval,field) {
 /*
 	Function that creates the configuration file that is needed to create the different chart for each measurement. 
 */
-function createConfigFile(data,target,id,className,field) {
-	var configData = setConfigData(data,field);
+function createConfigFile(data,target,id,field) {
+	var configData = setConfigData(data, field);
 	return {
 		target: target,
 		id: id,
-		className: className,
+		className: field,
 		margin: {
 			'top': chartConfigurations.dayView.charts.margin.top,
 			'right': chartConfigurations.dayView.charts.margin.right,
@@ -521,8 +520,8 @@ function createConfigFile(data,target,id,className,field) {
 			'left': chartConfigurations.dayView.charts.margin.left
 		},
 		day: getDateDay(data[0]),
-		date: new Date(data[0].date_human),
-		epoch: data[0].date_epoch,
+		date: new Date(data[0].time),
+		epoch: data[0].epoch,
 		width: chartConfigurations.dayView.charts.width,
 		height: chartConfigurations.dayView.charts.height,
 		data: configData.simple,
@@ -546,7 +545,7 @@ function getDataAnomalies(data,field) {
 	var anomalies = { high:[], low:[]};
 	if ('showAnomalies' in mainParameters[field]) {
 		$.each(data, function(i,d) {
-			if (d[field] > mainParameters[field].h) {
+			if (d[field] > mainParameters[field].h && d[field] != "") {
 				if (low) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -564,7 +563,7 @@ function getDataAnomalies(data,field) {
 			}
 			else {
 				if (high) {
-					if (temp[0].date_epoch != data[i-1].date_epoch) {
+					if (temp[0].epoch != data[i-1].epoch) {
 						prev = data[i-1];
 						prev['id'] = (i-1);
 						temp.push(prev);	
@@ -575,7 +574,7 @@ function getDataAnomalies(data,field) {
 				}
 			}
 			
-			if (d[field] < mainParameters[field].l) {
+			if (d[field] < mainParameters[field].l && d[field] != "") {
 				if (high) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -593,12 +592,13 @@ function getDataAnomalies(data,field) {
 			}
 			else {
 				if (low) {
-					if (temp[0].date_epoch != data[i-1].date_epoch) {
+					if (temp[0].epoch != data[i-1].epoch) {
 						prev = data[i-1];
 						prev['id'] = (i-1);
 						temp.push(prev);
 					}
 					anomalies.low.push(temp);
+
 					temp = [];
 					low = false;
 				}
@@ -614,7 +614,7 @@ function getDataAnomalies(data,field) {
 */ 
 function getDateDay(date) {
 	var weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-	var d = new Date(date['date_human']);
+	var d = new Date(date['time']);
 	return weekdays[d.getDay()];
 }
 
@@ -623,18 +623,19 @@ function getDateDay(date) {
 
 	It also takes in consideration the type of chart that will be built so it can transform/aggregate the data in the correct way (aggregate for bars, average for lines)
 */
-function setConfigData(data,field) {
+function setConfigData(data, field) {
 	var configData = { 
 			'simple': [],
 			'full': []
 		}
 	var aggregate = 0;
-	if (field == 'steps') {
+
+	if (fields[field].chartType == chartTypes.bar) {
 		$.each(data, function(i,d) {
-			var time = new Date(d.date_human);
+			var time = new Date(d.time);
 			var minute = i+1;
-			if (d[field] !== 'None' && d.date_epoch !=="") {	
-				aggregate+=parseInt(d[field]);
+			if (d[field] !== '' && d.epoch !=="") {	
+				aggregate += parseInt(d[field]);
 			}
 
 			if (minute%mainParameters.general.interval == 0) {
@@ -648,10 +649,10 @@ function setConfigData(data,field) {
 	else {
 		$.each(data, function(i,d) {
 			//selects intervals of minutes (600 = 10 mins, 300 = 5 mins, etc...)
-			var time = new Date(d.date_human);
-			if (time.getMinutes()%mainParameters.general.interval == 0) {
-				//if (d[field] === 'None' || d.date_epoch =="") {	
-				if (d.date_epoch =="") {	
+			var time = new Date(d.time);
+			if (time.getMinutes() % mainParameters.general.interval == 0) {
+				//if (d[field] === 'None' || d.epoch =="") {	
+				if (d.epoch == "") {	
 					configData.simple.push("0");
 				}
 				else {
@@ -711,7 +712,7 @@ function createLineChart(config) {
 	var minMaxValue = minMaxMixedArray(config.data);
 	if (minMaxValue[0] === undefined || minMaxValue[1] === undefined) {
 		minMaxValue[0] = 0;
-		minMaxValue[1] = 110; // 110 max blood pressure
+		minMaxValue[1] = 100;
 	}
 
 	var y = d3.scale.linear()
@@ -730,20 +731,16 @@ function createLineChart(config) {
 	    .scale(y)
 	    .orient("left");
 
-	var line = d3.svg.line().defined(function(d) { return d != 'None'})
+	var line = d3.svg.line().defined(function(d) { return d != ''})
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return y(d); });
 
-	var lineZoom = d3.svg.line().defined(function(d) { return d != 'None'})
+	var lineZoom = d3.svg.line().defined(function(d) { return d != ''})
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return yZoom(d); });
 
 	getDayHeadersForWeeklyCharts(config.target,config.id,config.className,config.day);
-		
-	// This would add the month and day underneath the day of the week	
-	// dayHeader.append('span')
-	// 	.text((config.date.getMonth()+1) +"/"+config.date.getDate());
-		
+	
 	d3.select(config.target + " #" + config.id)
 		.append('div')
 			.attr("class","chartDayArea");
@@ -779,12 +776,6 @@ function createLineChart(config) {
 		.attr("height", height + margin.top + margin.bottom)
 		.attr("fill", "#EEE");
 
-	// svg.append("text")
-	//   .attr("transform", "rotate(-90)")
-	//   .attr("y", 6)
-	//   .attr("dy", ".71em")
-	//   .style("text-anchor", "end");
-
 	svg.append("path")
 		.datum(config.data)
 		.attr("class", "line")
@@ -797,7 +788,6 @@ function createLineChart(config) {
 		.attr("d", lineZoom)
 		.attr("transform","translate("+(x(1)-1)+")");
 
-
 	var anomalyLine = d3.svg.line()
 		.x(function(d) { return x(d.x); })
     	.y(function(d) { return y(d.y); });
@@ -806,12 +796,12 @@ function createLineChart(config) {
 		.x(function(d) { return x(d.x); })
     	.y(function(d) { return yZoom(d.y); });
 
-	AddAnomalyLine(config,svg,mainParameters.hr.h, anomalyLine, y);
-	AddAnomalyLine(config,svg,mainParameters.hr.l, anomalyLine, y);
-	AddAnomalyLine(config,svgZoom,mainParameters.hr.h, anomalyLineZoom, yZoom);
-	AddAnomalyLine(config,svgZoom,mainParameters.hr.l, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svg,mainParameters.HR.h, anomalyLine, y);
+	AddAnomalyLine(config,svg,mainParameters.HR.l, anomalyLine, y);
+	AddAnomalyLine(config,svgZoom,mainParameters.HR.h, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svgZoom,mainParameters.HR.l, anomalyLineZoom, yZoom);
 
-	if (mainParameters.hr.showAnomalies) {
+	if (mainParameters.HR.showAnomalies) {
 		AddAnomaliesToChart(svg, config.anomalies.high,"h", x, y);
 		AddAnomaliesToChart(svg, config.anomalies.low,"l", x, y);
 		AddAnomaliesToChart(svgZoom, config.anomalies.high,"h", x, yZoom);
@@ -898,7 +888,7 @@ function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
 				})
 				.attr("y", function() {
 					if (type != "h") {
-						return y(mainParameters.hr.l);
+						return y(mainParameters.HR.l);
 					} else {
 						return 0;
 					}
@@ -909,9 +899,9 @@ function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
 				})
 				.attr("height", function() {
 					if (type != "h") {
-						return y(mainParameters.hr.l);
+						return y(mainParameters.HR.l);
 					} else {
-						return y(mainParameters.hr.h);
+						return y(mainParameters.HR.h);
 					}
 				})
 				.attr("fill", function() {
@@ -936,7 +926,7 @@ function isAnnotated(d) {
 function getAnnotation(d) {
 	if (dbNotes.length > 0) {
 		for (i = 0; i < dbNotes.length; i++) {
-			if (dbNotes[i].key.epoch == d.date_epoch) {
+			if (dbNotes[i].key.epoch == d.epoch) {
 				return dbNotes[i].value
 			}
 		}
@@ -1000,7 +990,7 @@ function openAnomalyDialog(d, rect) {
 			var values = {
     			'key': {
     				'userid': userid,
-					'epoch': d[0]['date_epoch']
+					'epoch': d[0]['epoch']
 				},
     			'value': notes.val()
     		};
@@ -1097,7 +1087,7 @@ function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
 	    .range([0, config.width]);
 
 	// Create a new line with the new scale
-	var line = d3.svg.line().defined(function(d) { return d != 'None'})
+	var line = d3.svg.line().defined(function(d) { return d != ''})
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return y(d); });
 
@@ -1114,7 +1104,7 @@ function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
 	svgZoom.selectAll("rect").remove();
 
 	// Add anomalies
-	if (mainParameters.hr.showAnomalies) {
+	if (mainParameters.HR.showAnomalies) {
 		AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", x, y);
 		AddAnomaliesToChart(svgZoom, anomaliesLow, "l", x, y);
 	}
@@ -1153,22 +1143,17 @@ function getDayData(start,end) {
 	//sets up a fresh object with all the minutes of the day
 	var clean = {};
 	for (var i = 0; i<= 1439 ; i++) {
-		clean[i] = {
-			hr : 0,
-			steps: 0,
-			calories: 0,
-			gsr: 0,
-			skinTemp: 0,
-			airTemp: 0,
-			date_human: '',
-			date_epoch: ''
-		};
+		var datum = {}
+		for (var property in mainData[0]) {
+			datum[property] = '';
+		}
+		clean[i] = datum;
 	}
 	var minday; //minute of the day
 	var day = [];
 	$.each(mainData, function(i,d) {
-		if (parseInt(d.date_epoch) >= start && parseInt(d.date_epoch) < end) {
-			minday = (new Date(d['date_human']).getHours() *60) + ((d['date_epoch']%3600)/60)
+		if (parseInt(d.epoch) >= start && parseInt(d.epoch) < end) {
+			minday = (new Date(d.time).getUTCHours() *60) + ((d.epoch % 3600)/60)
 			clean[minday] = d;
 		}
 	});
@@ -1180,7 +1165,7 @@ function getDayData(start,end) {
 }
 
 
-function createDayCharts(start,startEpoch) {
+function createDayCharts(start, startEpoch) {
 	$(".subsection").hide();
 	$(".subsection").html('');
 	$("#dayView").toggle();
@@ -1188,26 +1173,24 @@ function createDayCharts(start,startEpoch) {
 	userConfiguration.active = "dayView";
 	buildTimeScale("dayView",["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
 
-	loadWeekConfigData('hr',userConfiguration.week.start);
-	var hrConfig = userConfiguration.week.days[start];
-	hrConfig.target = "#dayView";
-	hrConfig.height = 130;
-	createLineChart(hrConfig);
-	$("#"+hrConfig.id +" h3").html("Heart<br>Rate");
-	$("#"+hrConfig.id +" h3").addClass("dailyHeader");
-
-
-	loadWeekConfigData('steps',userConfiguration.week.start);
-	var paConfig = userConfiguration.week.days[start];
-	paConfig.target = "#dayView";
-	paConfig.height = 130;
-	createBarChart(paConfig);
-	$("#"+paConfig.id +" h3").html("Physical<br>Activity");
-	$("#"+paConfig.id +" h3").addClass("dailyHeader");
+	var config;
+	$.each(fieldsToDisplay(), function(i,field) {
+		loadWeekConfigData(field, userConfiguration.week.start);
+		config = userConfiguration.week.days[start];
+		config.target = "#dayView";
+		config.height = 130;
+		if (fields[field].chartType == chartTypes.line) {
+			createLineChart(config);	
+		} else if (fields[field].chartType == chartTypes.bar) {
+			createBarChart(config);
+		}		
+		$("#" + config.id + " h3").html(fields[field].description);
+		$("#" + config.id + " h3").addClass("dailyHeader");
+	});
 
 	mainParameters.dayView.dayEpoch = startEpoch;
 	mainParameters.dayView.weekday = start;
-	mainParameters.dayView.date = paConfig.date;
+	mainParameters.dayView.date = config.date;
 
 	setBreakdownHeader('daily', '');	
 }
@@ -1264,27 +1247,14 @@ function buildTimeScale(target,data) {
 	});	
 }
 
-$(".measurement").click(function() {
-	// Activate menu item
-	$(".measurement").removeClass("active");
-	$(this).addClass("active");
-
-	// Show measurement data (use set timeout to force above code to execute first)
-	mname = $(this).attr("class").split(' ')[1];
-	setTimeout(function() {
-		showMeasurementWeek(mname);
-	}, 1 );
-	
-});
-
-function showMeasurementWeek(mname) {
-	userConfiguration.active = mname;
+function showFieldWeek(field) {
+	userConfiguration.active = field;
 	$(".subsection").hide();
-	$("#" + mname).html('');
-	$("#" + mname).toggle();
+	$("#" + field).html('');
+	$("#" + field).toggle();
 
-	buildTimeScale(mname, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-	createWeekChart(mname, userConfiguration.week.start);
+	buildTimeScale(field, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+	createWeekChart(field, userConfiguration.week.start);
 }
 
 function loadWeekConfigData(category,start) {
@@ -1292,7 +1262,7 @@ function loadWeekConfigData(category,start) {
 	var max = 0;
 	userConfiguration.week.days = [];
 	$.each(week, function(i,d) {
-		userConfiguration.week.days.push(createConfigFile(d,'#'+category,category+i,category.toLowerCase(),category.toLowerCase()));
+		userConfiguration.week.days.push(createConfigFile(d,'#'+category,category+i,category));
 		max = getWeekMax(userConfiguration.week.days[i].data, max);
 	});
 	userConfiguration.week.maxValue = max;
@@ -1303,17 +1273,16 @@ function loadWeekConfigData(category,start) {
 
 	asd
 */
-function createWeekChart(category,start, shortname) {
+function createWeekChart(field, start) {
 	$("#changeIntervalSection").show();
-	loadWeekConfigData(category,start);
-	setBreakdownHeader('week', category.toLowerCase());
+	loadWeekConfigData(field, start);
+	setBreakdownHeader('week', field);
 	
 	$.each(userConfiguration.week.days, function(i,config) {
-		if (category === 'steps') {
+		if (fields[field].chartType == chartTypes.bar) {
 			createBarChart(config);
-		}
-		else if (category === 'hr') {
-			createLineChart(config);	
+		} else if (fields[field].chartType == chartTypes.line) {
+			createLineChart(config);
 		}
 	})
 }
@@ -1325,8 +1294,6 @@ function getWeekMax(data, current) {
 	else
 		return current;
 }
-
-/********* PHYSICAL ACTIVITY ***********/
 
 function getDayHeadersForWeeklyCharts(target,id,className,day) {
 	var dayHeader = d3.select(target).append('div')
@@ -1340,7 +1307,6 @@ function getDayHeadersForWeeklyCharts(target,id,className,day) {
 	dayHeader.append('h3')
 		.text(day);
 }
-
 
 function createBarChart(config) {
 	var margin = {
@@ -1366,9 +1332,6 @@ function createBarChart(config) {
 	    .ticks(0)
 	    .orient("bottom");
 
-	// var yAxis = d3.svg.axis()
-	//     .scale(y)
-	//     .orient("left");
 	var yAxis = d3.svg.axis()
 				.scale(y)
 				.ticks(4)
@@ -1388,25 +1351,17 @@ function createBarChart(config) {
 				    .append("g")
 				    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 	
-	// svg.append("g")
-	// 	.attr("class", "y axis")
-	// 	.attr("transform", "translate(0,0)")
-	// 	.call(yAxis);
-
 	svg.append("g")
 		.attr("class", "axisBar")
 		.call(yAxis)
-    .append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 0)
+    	.append("text")
+     	.attr("transform", "rotate(-90)")
+      	.attr("y", 0);
 
     svg.append("g")
     	.attr("class", "axisBar")
     	.attr("transform","translate(0," + height + ")")
-    	.call(xAxis)
-      // .attr("dy", ".71em")		
-      // .style("text-anchor", "end")
-      // .text("Price ($)");
+    	.call(xAxis);
 
 	svg.selectAll('rect')
 		.data(config.data)
@@ -1419,7 +1374,6 @@ function createBarChart(config) {
 			},
 			'x': function(d,i) {
 				// if (d>0)
-				// 	console.log("D: " + i+ "  | s: "+d);
 				return (i*barWidth)+.5;
 			},
 			'y': function(d,i) {
@@ -1428,10 +1382,8 @@ function createBarChart(config) {
 		});
 }
 
-
 function getMax(data) {
 	// var max = Math.max.apply(Math,data);
-	// console.log(max); 
 	return Math.max.apply(Math,data);
 }
 
@@ -1442,10 +1394,9 @@ function changeInterval(interval) {
 	if (userConfiguration.active == "dayView") {
 		createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);
 	} else {
-		showMeasurementWeek(userConfiguration.active);
+		showFieldWeek(userConfiguration.active);
 	}
 }
-
 
 function setBreakdownHeader(type, field) {
 	
@@ -1454,19 +1405,19 @@ function setBreakdownHeader(type, field) {
 		var day1 = userConfiguration.week.days[0].date;
 		var day2 = userConfiguration.week.days[userConfiguration.week.days.length -1].date;
 
-		title = oficialNames[userConfiguration.active] + " from "+ MONTHS[day1.getMonth()] + " "+ day1.getDate() + " to "+ MONTHS[day2.getMonth()] + " "+ day2.getDate();
+		title = fields[userConfiguration.active].description + " from "+ MONTHS[day1.getMonth()] + " "+ day1.getDate() + " to "+ MONTHS[day2.getMonth()] + " "+ day2.getDate();
 	}
 	else if (type == 'daily') {
 		var day = mainParameters.dayView.date;
-		title = oficialNames[userConfiguration.active] + " for " + fullWeekdays[day.getDay()] + " " + MONTHS[day.getMonth()] + " " +day.getDate();
+		title = "Metrics for " + fullWeekdays[day.getDay()] + " " + MONTHS[day.getMonth()] + " " +day.getDate();
 	}
 
 	$("#breakdownHeader h3").text(title);
 }
 
 function setGanttHeader(oneWeek) {
-	var day1 = new Date(oneWeek[0].date_human);
-	var day2 = new Date(oneWeek[oneWeek.length - 1].date_human);
+	var day1 = new Date(oneWeek[0].time);
+	var day2 = new Date(oneWeek[oneWeek.length - 1].time);
 	header = MONTHS[day1.getMonth()] + " " + day1.getDate() + " to " + MONTHS[day2.getMonth()] + " " + day2.getDate()
 	$("#gantt h2").text('Exercise data: ' + header);
 }
@@ -1481,19 +1432,17 @@ function advanceTime(period) {
 	else if (period == -1)
 		period = -86400;
 	
-
 	//
 	// Forbid going to day that doesn't have data
 	//
 
 	userConfiguration.week.start = userConfiguration.week.start + period;	
 	initialize(userConfiguration.week.start);
-	console.log(userConfiguration.active);
 	if (userConfiguration.active != '') {
 		if (userConfiguration.active == 'dayView') {
 			createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);	
 		} else if (userConfiguration.active != '') {
-			showMeasurementWeek(userConfiguration.active);	
+			showFieldWeek(userConfiguration.active);	
 		}
 	}
 }

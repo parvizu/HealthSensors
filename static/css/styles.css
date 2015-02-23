@@ -41,10 +41,53 @@ table td
 	min-width:100px;
 }
 
+#loading {
+	width: 700px;
+	padding: 100px;
+}
+
+.spinner {
+   height:60px;
+   width:60px;
+   margin:0px auto;
+   position:relative;
+   -webkit-animation: rotation .7s infinite linear;
+   -moz-animation: rotation .7s infinite linear;
+   -o-animation: rotation .7s infinite linear;
+   animation: rotation .7s infinite linear;
+   border-left:4px solid rgba(119,119,119,.15);
+   border-right:4px solid rgba(119,119,119,.15);
+   border-bottom:4px solid rgba(119,119,119,.15);
+   border-top:4px solid rgba(119,119,119,.8);
+   border-radius:100%;
+}
+
+@-webkit-keyframes rotation {
+   from {-webkit-transform: rotate(0deg);}
+   to {-webkit-transform: rotate(359deg);}
+}
+@-moz-keyframes rotation {
+   from {-moz-transform: rotate(0deg);}
+   to {-moz-transform: rotate(359deg);}
+}
+@-o-keyframes rotation {
+   from {-o-transform: rotate(0deg);}
+   to {-o-transform: rotate(359deg);}
+}
+@keyframes rotation {
+   from {transform: rotate(0deg);}
+   to {transform: rotate(359deg);}
+}
+
 
 #gantt {
+	display: none;
 	/*background-color: lightgray;*/
 	/*margin: 5px;*/
+}
+
+#settings {
+	display: none;
 }
 
 .ganttDay {
