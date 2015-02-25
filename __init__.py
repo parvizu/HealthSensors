@@ -13,8 +13,11 @@ from functools import update_wrapper
 app = Flask(__name__)
 LOCAL_PORT = 5000
 port = int(environ.get("FLASK_PORT", LOCAL_PORT))
+
+# CONSTANTS
 NOTES_DB = "notes"
 SETTINGS_DB = "settings"
+SETTINGS_ANOMALIES_KEY = "anomalies"
 
 @app.route('/')
 def index():
@@ -30,7 +33,12 @@ def get_init(userid):
 
 	notes = get_notes(userid)
 	settings = get_settings(userid)
-	return json.dumps({ 'data': data, 'notes': notes, 'settings': settings })
+	app_data = { 
+			'data': data, 
+			'notes': notes, 
+			'settings': settings
+		}
+	return json.dumps(app_data)
 
 @app.route('/getnotes/<userid>', methods = ['GET'])
 def get_notes(userid):
@@ -69,27 +77,30 @@ def add_note():
 @app.route('/getsettings/<userid>', methods = ['GET'])
 def get_settings(userid):
 	settings_db = shelve.open(SETTINGS_DB)
-	if (len(settings_db) > 0):
+	if (len(settings_db) > 0 and SETTINGS_ANOMALIES_KEY in settings_db):
 		userid = int(userid.strip())
-		settings_json = json.dumps(settings_db['anomaly'])
+		settings_json = json.dumps(settings_db[SETTINGS_ANOMALIES_KEY])
 		settings_db.close()
 		return settings_json
-		
 	else:
-		notes_db.close()
+		settings_db.close()
 		return '[]'
 
 @app.route('/addsetting', methods = ['POST'])
 def add_setting():
-	high = request.form['hr-high']
-	low = request.form['hr-low']
-	valid = re.match('^([0-9])+$', high) is not None
-	valid = valid and (re.match('^([0-9])+$', low) is not None)
-	if (valid):
-		settings_db = shelve.open(SETTINGS_DB)
-		settings_db['anomaly'] = { 'high': high, 'low': low }
-		settings_db.close()
-	return redirect(url_for('index'))
+	settings_db = shelve.open(SETTINGS_DB)
+	json = {}
+	for key in request.form:
+		val = request.form[key]
+		valid = re.match('^([0-9])+$', val) is not None
+		valid = valid and (re.match('^([0-9])+$', val) is not None)
+		if (valid):
+			json[key] = val
+
+	settings_db[SETTINGS_ANOMALIES_KEY] = json
+	print json
+	settings_db.close()
+	return redirect(url_for('index'))	
 
 if __name__ == '__main__':
 	app.debug = True

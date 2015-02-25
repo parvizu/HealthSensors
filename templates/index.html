@@ -10,8 +10,6 @@
     <script type="text/javascript" src="static/js/d3.js"></script>
     <script type="text/javascript" src="static/js/d3.min.js"></script>
     <script type="text/javascript" src="static/js/jquery.csv-0.71.js"></script>
-
-    
 </head>
 <body>
 	<div id="container">
@@ -43,7 +41,6 @@
 					</tr>
 				</tbody>
 			</table>
-			<!-- <div class="more">Expand</div> -->
 		</div>
 
 		<div id="loading">
@@ -54,12 +51,6 @@
 			<h2></h2>
 			<div class="ganttSide">
 				<div class="dayMenu"><a href="" onclick="advanceTime(-6);return false;"><<</a>  <a href="" onclick="advanceTime(-1);return false;"><</a></div>
-<!-- 				<div class="measurement HR">Heart Rate</div>
-				<div class="measurement steps">Physical Activity</div>
-				<div class="measurement" >Sleep Quality</div>
-				<div class="measurement" >Blood Oxygen</div>
-				<div class="measurement" >Respiration</div> -->
-				
 			</div>
 			<div class="chartContent"></div>
 			<div id="rightSideGantt">
@@ -78,16 +69,16 @@
 						</tr>
 					</thead>
 					<tbody>
-						<tr>
+						<!-- <tr>
 							<td>Heart Rate</td>
-							<td><input type="text" style="width:40px" name="hr-low" id="hr-low"></td>
-							<td><input type="text" style="width:40px" name="hr-high" id="hr-high"></td>
+							<td><input type="text" style="width:40px" name="HR-low" id="HR-low"></td>
+							<td><input type="text" style="width:40px" name="HR-high" id="HR-high"></td> 
 						</tr>
 						<tr>
 							<td colspan="3">
 								<input type="submit" name="save-threshold" value="Save Changes">
 							</td>
-						</tr>
+						</tr>-->
 					</tbody>
 				</table>
 			</form>
@@ -96,11 +87,6 @@
 		<div id="breakdown" class="section">
 			<div id="breakdownHeader"><h3></h3></div>
 			<div id="fields">
-				<div id="HR" class="subsection"></div>
-				<div id="bloodOxygen"></div>
-				<div id="steps" class="subsection"></div>		
-				<div id="respiration"></div>
-				<div id="sleepQuality"></div>
 			</div>
 			<div id="dayView" class="subsection"></div>
 			<div id="changeIntervalSection">

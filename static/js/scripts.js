@@ -5,37 +5,67 @@ var fields = {
 			'description': 'Air Temperature',
 			'chartType': chartTypes.other,
 			'required': false,
-			'display': false
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
 		},
 		'time': {
 			'description': 'Time',
 			'chartType': chartTypes.other,
 			'required': true,
-			'display': false
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
 		},
 		'GSR': {
 			'description': 'Galvanic Skin Response',
 			'chartType': chartTypes.other,
 			'required': false,
-			'display': false
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
 		},
 		'HR': {
 			'description': 'Heartrate',
 			'chartType': chartTypes.line,
 			'required': false,
-			'display': true
+			'display': true,
+			'anomalies': {
+				'h': 80, // default
+				'l': 55, // default
+				'display': true
+			}
 		},
 		'stemp': {
 			'description': 'Skin Temperature',
 			'chartType': chartTypes.other,
 			'required': false,
-			'display': false
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
 		},
 		'steps': {
 			'description': 'Steps',
 			'chartType': chartTypes.bar,
 			'required': false,
-			'display': true
+			'display': true,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
 		}
 	};
 
@@ -55,12 +85,6 @@ var userConfiguration = {
 }
 
 var mainParameters = {
-	'HR': {
-		'h': 80, // Gets overridden during init
-		'l': 55, // Gets overridden during init
-		'showAnomalies': true
-	},
-	'steps': {},
 	'dayView': {
 		'weekday': 0,
 		'date': '',
@@ -120,6 +144,16 @@ function fieldsToDisplay() {
 	return keys;
 }
 
+function anomalyFieldsToDisplay() {
+	var keys = [];
+	for (var k in fields) {
+		if (fields[k].anomalies.display) {
+			keys.push(k);
+		}
+	}
+	return keys;
+}
+
 var userid;
 var dbNotes;
 
@@ -141,13 +175,13 @@ $(document).ready( function() {
 		dbData = initValues['data'];
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
+
+		// Assign database settings to app variables
+		setSettings(dbSettings);
 		
 		// Initialize visualization
 		mainData = loadData(dbData);
 		initialize(mainData[0].epoch);
-
-		// Assign database settings to app variables
-		setSettings(dbSettings);
 
 		// TEMPORARY Uses the change button to update the interval.
 		$("#changeInterval").on("click", function() {
@@ -167,15 +201,76 @@ $(document).ready( function() {
 });
 
 function setSettings(dbSettings) {
-	mainParameters.HR.h = parseFloat(dbSettings['high']);
-	mainParameters.HR.l = parseFloat(dbSettings['low']) ;   
-	$("#hr-high").val(dbSettings['high']);
-	$("#hr-low").val(dbSettings['low']);
+	addSettingsHTML();
+	anomalyFields =  anomalyFieldsToDisplay();
+	for (key in dbSettings) {
+		field = key.split('-')[0];
+		property = key.split('-')[1];
+		if (anomalyFields.indexOf(field) > -1) {
+			// Set settings in app memory
+			if (property == "high") {
+				fields[field].anomalies.h = parseFloat(dbSettings[key]);
+			} else {
+				fields[field].anomalies.l = parseFloat(dbSettings[key]);
+			}
+			$("#" + key).val(dbSettings[key]);
+		}
+	}
+}
+
+function addSettingsHTML() {
+	$.each(anomalyFieldsToDisplay(), function(i, field) {
+		anomaliesConfigTable = "#settings tbody"
+		settingsForm = d3.select(anomaliesConfigTable).append("tr");
+
+		settingsForm
+			.append("td")
+			.text(fields[field].description);
+
+		settingsForm
+			.append("td")
+			.append("input")
+			.attr("type", "text")
+			.attr("style","width: 40px")
+			.attr("name", field + "-low")
+			.attr("id", field + "-low");
+
+		settingsForm
+			.append("td")
+			.append("input")
+			.attr("type", "text")
+			.attr("style","width: 40px")
+			.attr("name", field + "-high")
+			.attr("id", field + "-high");
+	
+	});
+	settingsForm = d3.select(anomaliesConfigTable).append("tr");
+
+	settingsForm
+		.append("td")
+		.attr("colspan", 3)
+		.append("input")
+		.attr("type", "submit")
+		.attr("name", "save-threshold")
+		.attr("value", "Save Changes");
 }
 
 function initialize(start) {
 	getWeekData(start);
 	buildGantt();
+	// The line below adds HTML tags for each field.
+	// I don't like that we do this now as opposed when we actually fill
+	// the tags with field content when a field is clicked.
+	addFieldTags();
+}
+
+function addFieldTags() {
+	$.each(fieldsToDisplay(), function(i, field) {
+		d3.select('#fields')
+				.append('div')
+				.attr('id', field)
+				.attr('class', "subsection");
+	});
 }
 
 function loadData(file) {
@@ -218,11 +313,11 @@ function cleanData(data) {
 }
 
 
-function buildMainTable() {
-	var scan = mainData[0];
-	var str = "<td>Mr. John Doe</td><td>"+scan['HR']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['HR']+"</td><td></td>"
-	$("#mainTableBody").append()
-}
+// function buildMainTable() {
+// 	var scan = mainData[0];
+// 	var str = "<td>Mr. John Doe</td><td>"+scan['HR']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['HR']+"</td><td></td>"
+// 	$("#mainTableBody").append()
+// }
 
 /*
 	Function that constructs the main week chart Gantt style based on the information of the week for all the different measurements. 
@@ -302,17 +397,6 @@ function buildGantt() {
 		Inner function that will create and append to the Gantt Svg the group of block for each measurement
 	*/
 	function addMeasurementBlocks(field,y) {
-		// var vals = [];
-		// $.map(weekData, function(obj,k) {
-		// 	if (obj[field] =='None') 
-		// 		vals.push(0)
-		// 	else
-		// 		vals.push(parseInt(obj[field]));
-		// })
-
-		var color = d3.scale.linear()
-			.domain([0,100])
-			.range(['white','black']);
 
 		var values =[];
 		if (fields[field].chartType == chartTypes.line) {			
@@ -367,7 +451,7 @@ function buildGantt() {
 								fillVal = "#777";
 							}
 						}
-						return fillVal; //color(fillVal);
+						return fillVal;
 					},
 					'value': function(d) {
 						return d['value']
@@ -379,7 +463,6 @@ function buildGantt() {
 	}
 
 	$.each(fieldsToDisplay(), function(i,key) {
-		// if (key == 'steps' || key == 'heartrate' || key =='calories')
 		addMeasurementBlocks(key, i*33);
 	});
 
@@ -406,28 +489,36 @@ function getNonNullMeasurement(data, interval, field) {
 	$.each(data, function(i, d) {
 		minute = i + 1;
 		count++;
+		endOfInterval = (minute % interval == 0);
 		if (d[field] != "") {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
-			if (mainParameters[field] != undefined) {
-				if (value > mainParameters[field].h) {
-					anomalyOver.push(d);
-				} else if (value < mainParameters[field].l) {
-					anomalyUnder.push(d);
-				}
-				if (value > mainParameters[field].h || value < mainParameters[field].l) {
-					// Begin chain of consecutive anomalies
-					consecutiveAnomalies++;
-				} else if (consecutiveAnomalies > 1) {
-					// If there are 0 or 1 consecutive anomalies, we don't care
-					// If there are two or more consecutive anomalies, we consider that a chain.  That chain is now broken.
-					maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
-					consecutiveAnomalies = 0;
-				}
+
+			if (value > fields[field].anomalies.h) {
+				anomalyOver.push(d);
+				consecutiveAnomalies++;
+			} else if (value < fields[field].anomalies.l) {
+				anomalyUnder.push(d);
+				consecutiveAnomalies++;
 			}
+			if ((value < fields[field].anomalies.h && 
+				value > fields[field].anomalies.l && 
+				consecutiveAnomalies > 1)) {
+				// If there are 0 or 1 consecutive anomalies, we don't care
+				// If there are two or more consecutive anomalies, we consider that a chain.  That chain is now broken.
+				maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
+				consecutiveAnomalies = 0;
+			}
+
 		}
-		if (minute % interval == 0) {
+
+		if (endOfInterval) {
+			maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
+			consecutiveAnomalies = 0;
+		}
+
+		if (endOfInterval) {
 			var perc = 0;
 			if (measurements > 0) {
 				perc = (measurements / count) * 100;
@@ -470,15 +561,14 @@ function getAggregateMeasurement(data,interval,field) {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
-			if (mainParameters[field] != undefined) {
-				if (value > mainParameters[field].h) {
+			if (fields[field].anomalies.display) {
+				if (value > fields[field].anomalies.h) {
 					anomalyOver.push(d);
 				}
-				else if (value < mainParameters[field].l) {
+				else if (value < fields[field].anomalies.l) {
 					anomalyUnder.push(d);
 				}
 			}
-			
 		}
 
 		if (minute%interval == 0 ) {
@@ -543,9 +633,9 @@ function getDataAnomalies(data,field) {
 	var low = false;
 	var prev;
 	var anomalies = { high:[], low:[]};
-	if ('showAnomalies' in mainParameters[field]) {
+	if (fields[field].anomalies.display) {
 		$.each(data, function(i,d) {
-			if (d[field] > mainParameters[field].h && d[field] != "") {
+			if (d[field] > fields[field].anomalies.h && d[field] != "") {
 				if (low) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -574,7 +664,7 @@ function getDataAnomalies(data,field) {
 				}
 			}
 			
-			if (d[field] < mainParameters[field].l && d[field] != "") {
+			if (d[field] < fields[field].anomalies.l && d[field] != "") {
 				if (high) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -796,16 +886,16 @@ function createLineChart(config) {
 		.x(function(d) { return x(d.x); })
     	.y(function(d) { return yZoom(d.y); });
 
-	AddAnomalyLine(config,svg,mainParameters.HR.h, anomalyLine, y);
-	AddAnomalyLine(config,svg,mainParameters.HR.l, anomalyLine, y);
-	AddAnomalyLine(config,svgZoom,mainParameters.HR.h, anomalyLineZoom, yZoom);
-	AddAnomalyLine(config,svgZoom,mainParameters.HR.l, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svg,fields[config.className].anomalies.h, anomalyLine, y);
+	AddAnomalyLine(config,svg,fields[config.className].anomalies.l, anomalyLine, y);
+	AddAnomalyLine(config,svgZoom,fields[config.className].anomalies.h, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svgZoom,fields[config.className].anomalies.l, anomalyLineZoom, yZoom);
 
-	if (mainParameters.HR.showAnomalies) {
-		AddAnomaliesToChart(svg, config.anomalies.high,"h", x, y);
-		AddAnomaliesToChart(svg, config.anomalies.low,"l", x, y);
-		AddAnomaliesToChart(svgZoom, config.anomalies.high,"h", x, yZoom);
-		AddAnomaliesToChart(svgZoom, config.anomalies.low,"l", x, yZoom);
+	if (fields[config.className].anomalies.display) {
+		AddAnomaliesToChart(config.className, svg, config.anomalies.high,"h", x, y);
+		AddAnomaliesToChart(config.className, svg, config.anomalies.low,"l", x, y);
+		AddAnomaliesToChart(config.className, svgZoom, config.anomalies.high,"h", x, yZoom);
+		AddAnomaliesToChart(config.className, svgZoom, config.anomalies.low,"l", x, yZoom);
 	}
 
 	// Handle zooming
@@ -879,7 +969,7 @@ function AddAnomalyLine(config,svg,value,line, y) {
 		.text(value);
 }
 
-function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
+function AddAnomaliesToChart(field, targetSvg, anomalies, type, x, y) {
 	$.each(anomalies, function(i,d) {
 		if (d.length>1) {
 			targetSvg.append("rect")
@@ -888,7 +978,7 @@ function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
 				})
 				.attr("y", function() {
 					if (type != "h") {
-						return y(mainParameters.HR.l);
+						return y(fields[field].anomalies.l);
 					} else {
 						return 0;
 					}
@@ -899,9 +989,9 @@ function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
 				})
 				.attr("height", function() {
 					if (type != "h") {
-						return y(mainParameters.HR.l);
+						return y(fields[field].anomalies.l);
 					} else {
-						return y(mainParameters.HR.h);
+						return y(fields[field].anomalies.h);
 					}
 				})
 				.attr("fill", function() {
@@ -1104,9 +1194,9 @@ function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
 	svgZoom.selectAll("rect").remove();
 
 	// Add anomalies
-	if (mainParameters.HR.showAnomalies) {
-		AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", x, y);
-		AddAnomaliesToChart(svgZoom, anomaliesLow, "l", x, y);
+	if (fields[config.className].anomalies.display) {
+		AddAnomaliesToChart(config.className, svgZoom, anomaliesHigh, "h", x, y);
+		AddAnomaliesToChart(config.className, svgZoom, anomaliesLow, "l", x, y);
 	}
 
 }
@@ -1257,12 +1347,13 @@ function showFieldWeek(field) {
 	createWeekChart(field, userConfiguration.week.start);
 }
 
-function loadWeekConfigData(category,start) {
+function loadWeekConfigData(field, start) {
 	var week = getWeekData(start);
 	var max = 0;
 	userConfiguration.week.days = [];
 	$.each(week, function(i,d) {
-		userConfiguration.week.days.push(createConfigFile(d,'#'+category,category+i,category));
+		config = createConfigFile(d, '#' + field, field + i, field)
+		userConfiguration.week.days.push(config);
 		max = getWeekMax(userConfiguration.week.days[i].data, max);
 	});
 	userConfiguration.week.maxValue = max;
