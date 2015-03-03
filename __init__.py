@@ -14,6 +14,9 @@ app = Flask(__name__)
 LOCAL_PORT = 5000
 port = int(environ.get("FLASK_PORT", LOCAL_PORT))
 
+if (port != LOCAL_PORT):
+	app.config['SERVER_NAME'] = 'http://people.ischool.berkeley.edu/~tmeyers/server'
+
 # CONSTANTS
 NOTES_DB = "notes"
 SETTINGS_DB = "settings"

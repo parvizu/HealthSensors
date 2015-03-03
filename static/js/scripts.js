@@ -789,12 +789,21 @@ function createLineChart(config) {
 	    width = config.width;
 	    height = config.height;
 
-	var parseDate = d3.time.format("%Y-%m-%d").parse;
+	var xStart = 0;
+	var xEnd = config.data.length;
 
-	var x = d3.scale.linear()
-		.domain([0, config.data.length])
+	var xBase = d3.scale.linear()
+		.domain([xStart, xEnd])
 	    .range([0, width]);
 
+	// Since the choice of x-scale will depend on whether we're zoomed in,
+	// we can define multiple x's, but set the one we're currently using
+	// in xCurrent.
+	var x = xBase;
+
+	var zoomData = config.data;
+
+	// TODO: kill function below and use x.invert
 	var xInverse = d3.scale.linear()
 		.domain([0, width])
 	    .range([0,config.data.length]);	
@@ -838,6 +847,7 @@ function createLineChart(config) {
 	// Create SVGs for day line charts (zoomed and all-day)
 	var dayContainer = d3.select("#" + config.id + " .chartDayArea");
 
+	// This is the taller SVG where "zoomed in" chart appears.
 	var svgZoom = dayContainer.append("svg")
 		.attr("width", width + margin.left + margin.right)
 		.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
@@ -845,6 +855,32 @@ function createLineChart(config) {
 		.append("g")
 			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+	// Add rectangle to track cursor
+	svgZoom.append("rect")
+		.attr("class", "rectTrackCursor")
+		.attr("width", width + margin.right)
+	    .attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
+	    .attr("fill", "#FFFFFF")
+	    .on("mouseover", cursorShow)
+	    .on("mouseout", cursorHide)
+	    .on("mousemove", trackCursor);
+
+	// Add dot to highlight cursor position
+	var cursorDot = svgZoom.append("circle")
+		.attr("class", "cursorXPos")
+		.attr("cx", 0)
+		.attr("cy", 0)
+		.attr("r", 3)
+		.style("display", "none");
+
+	// Add text to show values at cursor
+	var cursorText = svgZoom.append("text")
+		.text("hello")
+		.attr("y", 12)
+		.attr("x", 0)
+		.attr("class", "cursorText");
+
+	// This is the shorter SVG where you can manipulate zoom
 	var svg = dayContainer.append("svg")
 		.attr("width", width + margin.left + margin.right)
 	    .attr("height", height + margin.top + margin.bottom)
@@ -855,7 +891,7 @@ function createLineChart(config) {
 
 	// Make background rectangle to handle mouse events
 	svg.append("rect")
-		.attr("width", width + margin.left + margin.right)
+		.attr("width", width + margin.right)
 	    .attr("height", height + margin.top + margin.bottom)
 	    .attr("fill", "#FFFFFF");
 
@@ -872,7 +908,7 @@ function createLineChart(config) {
 		.attr("d", line)
 		.attr("transform","translate("+(x(1)-1)+")");
 
-	svgZoom.append("path")
+	pathZoom = svgZoom.append("path")
 		.datum(config.data)
 		.attr("class", "lineZoom")
 		.attr("d", lineZoom)
@@ -892,13 +928,50 @@ function createLineChart(config) {
 	AddAnomalyLine(config,svgZoom,fields[config.className].anomalies.l, anomalyLineZoom, yZoom);
 
 	if (fields[config.className].anomalies.display) {
-		AddAnomaliesToChart(config.className, svg, config.anomalies.high,"h", x, y);
-		AddAnomaliesToChart(config.className, svg, config.anomalies.low,"l", x, y);
-		AddAnomaliesToChart(config.className, svgZoom, config.anomalies.high,"h", x, yZoom);
-		AddAnomaliesToChart(config.className, svgZoom, config.anomalies.low,"l", x, yZoom);
+		AddAnomaliesToChart(svg, config.anomalies.high, "h", y);
+		AddAnomaliesToChart(svg, config.anomalies.low, "l", y);
+		AddAnomaliesToChart(svgZoom, config.anomalies.high, "h", yZoom);
+		AddAnomaliesToChart(svgZoom, config.anomalies.low, "l", yZoom);
 	}
 
-	// Handle zooming
+	// Handle cursor tracking on taller SVG
+	function trackCursor() {
+		var xPixels = d3.mouse(this)[0];
+		var xIndex = Math.floor(x.invert(xPixels));
+		var xDiscrete = x(xIndex);
+		var yPixels = zoomData[xIndex];
+
+		if (yPixels == "") {
+			yPixels = 0;
+		} else {
+			trackedYPos = yPixels;
+		}
+
+		cursorDot
+			.attr("cx", xDiscrete)
+			.attr("cy", yZoom(yPixels))
+			.style("display", function() { return (yPixels == 0) ? "none":"block" });
+
+		cursorText
+			.text(cursorTrackText(xStart + xIndex, yPixels))
+			.style("display", function() { return (yPixels == 0) ? "none":"block" });
+		
+	};
+
+	function cursorShow() {
+		cursorDisplay(true);
+	}
+
+	function cursorHide() {
+		cursorDisplay(false);
+	}
+
+	function cursorDisplay(bool) {
+	    cursorDot.style("display", bool ? "block":"none");
+	    cursorText.style("display", bool ? "block":"none");
+	}
+
+	// Handle zooming on shorter SVG
   	svg.on("mousedown", function() {
   		// Store x-value
   		var rect = d3.select(this);
@@ -934,23 +1007,115 @@ function createLineChart(config) {
     		w.on("mousemove", null).on("mouseup", null);
     		if (xNow !== undefined) {
 	    		// Refresh zoomed chart
-	    		minIndex = Math.floor(xInverse(Math.min(xDown, xNow)));
-				maxIndex = Math.floor(xInverse(Math.max(xDown, xNow)));
+	    		xStart = Math.floor(xInverse(Math.min(xDown, xNow)));
+				xEnd = Math.floor(xInverse(Math.max(xDown, xNow)));
 				// TODO: we're assuming here that every index is a minute of data
-				zoomData = config.data.slice(minIndex,maxIndex);
+				zoomData = config.data.slice(xStart,xEnd);
 
-				anomaliesLow = AnomaliesSubset(minIndex,maxIndex,config.anomalies.low);
-				anomaliesHigh = AnomaliesSubset(minIndex,maxIndex,config.anomalies.high);
+				anomaliesLow = AnomaliesSubset(xStart,xEnd,config.anomalies.low);
+				anomaliesHigh = AnomaliesSubset(xStart,xEnd,config.anomalies.high);
 				
-	    		RefreshZoomChart(zoomData, config, lineZoom, yZoom, anomaliesLow, anomaliesHigh);
+	    		RefreshZoomChart(zoomData, config, anomaliesLow, anomaliesHigh);
     		} else {
     			// Clear rectangle and reset zoom
+    			xStart = 0;
+    			xEnd = config.data.length;
   				rectZoom.attr("transform", "translate(0,0)")
   				rectZoom.attr("width", width + margin.left + margin.right)
-    			RefreshZoomChart(config.data, config, lineZoom, yZoom, config.anomalies.low, config.anomalies.high)
+    			RefreshZoomChart(config.data, config, config.anomalies.low, config.anomalies.high)
     		}
   		}
+
 	});
+
+	function RefreshZoomChart(data, config, anomaliesLow, anomaliesHigh) {
+
+		// Set new zoom data
+		zoomData = data;
+
+		// Reset the scale for the zoomed line
+		x = d3.scale.linear()
+			.domain([0, data.length])
+		    .range([0, config.width]);
+
+		// Create a new line with the new scale
+		var line = d3.svg.line().defined(function(d) { return d != ''})
+		    .x(function(d,i) { return x(i); })
+		    .y(function(d) { return yZoom(d); });
+
+		// Select the zoomed line
+		svgZoom = d3.select("#" + config.id + " div svg.lineChartZoom g");
+		lineZoom = svgZoom.select("path.lineZoom");
+		
+		// Update the zoomed line data
+		lineZoom
+			.data([zoomData])
+			.attr("d", line);
+
+		// Save important rectangle before clearing all of the anomaly rectangles
+		rectTrackCursor = svgZoom.select(".rectTrackCursor").node();
+
+		// Remove all rectangles (to clear anomalies)
+		svgZoom.selectAll("rect").remove();
+
+		// Re-insert cursor-tracking rectangle to top of child list
+		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
+
+		// Add anomalies
+		if (fields[config.className].anomalies.display) {
+			AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", yZoom);
+			AddAnomaliesToChart(svgZoom, anomaliesLow, "l", yZoom);
+		}
+	}
+
+	function AddAnomaliesToChart(targetSvg, anomalies, type, y) {
+		$.each(anomalies, function(i,d) {
+			if (d.length>1) {
+				targetSvg.append("rect")
+					.attr("x", function() {
+						return x(d[0].id);
+					})
+					.attr("y", function() {
+						if (type != "h") {
+							return y(fields[config.className].anomalies.l);
+						} else {
+							return 0;
+						}
+					})
+					.attr("width", function() {
+						var w = x(d[1].id - d[0].id);
+						return w;
+					})
+					.attr("height", function() {
+						if (type != "h") {
+							return y(fields[config.className].anomalies.l);
+						} else {
+							return y(fields[config.className].anomalies.h);
+						}
+					})
+					.attr("fill", function() {
+						if (isAnnotated(d[0])) {
+							return annotateConfigurations.color
+						} else {
+							return "#555555"
+						}
+					})
+					.attr("class", "heartAnomaly")
+					.on("mousedown", function() {
+						openAnomalyDialog(d, this);
+	 				});
+			}
+		});
+	}
+}
+
+function cursorTrackText(timeIndex, val) {
+	hours = timeIndex % 3600;
+	minutes = hours % 60;
+	hours = (hours - minutes) / 60;
+	minPad = (String(minutes).length == 1) ? "0":"";
+	time = hours + "h" + minPad + minutes;
+	return "Time: " + time + ", Value: " + val;
 }
 
 function AddAnomalyLine(config,svg,value,line, y) {
@@ -967,46 +1132,6 @@ function AddAnomalyLine(config,svg,value,line, y) {
 		.attr("x", 15 - chartConfigurations.dayView.charts.margin.left)
 		.attr("class", "dayViewLabel")
 		.text(value);
-}
-
-function AddAnomaliesToChart(field, targetSvg, anomalies, type, x, y) {
-	$.each(anomalies, function(i,d) {
-		if (d.length>1) {
-			targetSvg.append("rect")
-				.attr("x", function() {
-					return x(d[0].id);
-				})
-				.attr("y", function() {
-					if (type != "h") {
-						return y(fields[field].anomalies.l);
-					} else {
-						return 0;
-					}
-				})
-				.attr("width", function() {
-					var w = x(d[1].id - d[0].id);
-					return w;
-				})
-				.attr("height", function() {
-					if (type != "h") {
-						return y(fields[field].anomalies.l);
-					} else {
-						return y(fields[field].anomalies.h);
-					}
-				})
-				.attr("fill", function() {
-					if (isAnnotated(d[0])) {
-						return annotateConfigurations.color
-					} else {
-						return "#555555"
-					}
-				})
-				.attr("class", "heartAnomaly")
-				.on("mousedown", function() {
-					openAnomalyDialog(d, this);
- 				});
-		}
-	});
 }
 
 function isAnnotated(d) {
@@ -1165,42 +1290,6 @@ function AnomaliesSubset(minIndex,maxIndex,anomalies) {
 	});
 	return anomaliesSubset	
 }
-
-/*
-	Function that refreshes the zoomed line chart to show the data within the latest zoom bounds
-*/
-function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
-
-	// Reset the scale for the zoomed line
-	var x = d3.scale.linear()
-		.domain([0, data.length])
-	    .range([0, config.width]);
-
-	// Create a new line with the new scale
-	var line = d3.svg.line().defined(function(d) { return d != ''})
-	    .x(function(d,i) { return x(i); })
-	    .y(function(d) { return y(d); });
-
-	// Select the zoomed line
-	svgZoom = d3.select("#" + config.id + " div svg.lineChartZoom g");
-	lineZoom = svgZoom.select("path.lineZoom");
-	
-	// Update the zoomed line data
-	lineZoom
-		.data([data])
-		.attr("d", line);
-
-	// Remove anomalies
-	svgZoom.selectAll("rect").remove();
-
-	// Add anomalies
-	if (fields[config.className].anomalies.display) {
-		AddAnomaliesToChart(config.className, svgZoom, anomaliesHigh, "h", x, y);
-		AddAnomaliesToChart(config.className, svgZoom, anomaliesLow, "l", x, y);
-	}
-
-}
-
 
 /*
 	Function that selects the data of the chosen week and sets it up in the userConfiguration element as well as returning it as an array. 
@@ -1407,8 +1496,6 @@ function createBarChart(config) {
 					left: config.margin.left},
 	    width = config.width;
 	    height = config.height;
-
-	var parseDate = d3.time.format("%Y-%m-%d").parse;
 
 	var x = d3.scale.linear()
 		.domain([0,config.data.length])

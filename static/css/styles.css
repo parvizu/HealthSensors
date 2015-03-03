@@ -375,4 +375,7 @@ h3.dailyHeader {
 	margin-bottom: 20px;
 }
 
-
+.cursorText {
+	font-size: 10px;
+	display: none;
+}
