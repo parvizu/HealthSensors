@@ -1,16 +1,77 @@
 var mainData, cleanData;
-var minEpoch = -1, maxEpoch = -1;
-var fields = ["airTemp","calories","date","epoch","gsr","hr","skinTemp","steps"]
+var chartTypes = { "line": 1, "bar": 2, "other": 0 }
+var fields = {
+		'atemp': {
+			'description': 'Air Temperature',
+			'chartType': chartTypes.other,
+			'required': false,
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
+		},
+		'time': {
+			'description': 'Time',
+			'chartType': chartTypes.other,
+			'required': true,
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
+		},
+		'GSR': {
+			'description': 'Galvanic Skin Response',
+			'chartType': chartTypes.other,
+			'required': false,
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
+		},
+		'HR': {
+			'description': 'Heartrate',
+			'chartType': chartTypes.line,
+			'required': false,
+			'display': true,
+			'anomalies': {
+				'h': 80, // default
+				'l': 55, // default
+				'display': true
+			}
+		},
+		'stemp': {
+			'description': 'Skin Temperature',
+			'chartType': chartTypes.other,
+			'required': false,
+			'display': false,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
+		},
+		'steps': {
+			'description': 'Steps',
+			'chartType': chartTypes.bar,
+			'required': false,
+			'display': true,
+			'anomalies': {
+				'h': 100, // default
+				'l': 0, // default
+				'display': false
+			}
+		}
+	};
+
 var fullWeekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-var oficialNames = {
-	'hr' : 'Heart Rate',
-	'steps' : 'Physical Activity',
-	'calories' : 'Calories',
-	'airTemp' : 'Air Temperature',
-	'skinTemp' : 'Skin Temperature',
-	'dayView': 'Metrics'
-}
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
 var userConfiguration = {
 	'week':{
 		'start': 0,
@@ -24,20 +85,14 @@ var userConfiguration = {
 }
 
 var mainParameters = {
-	'hr': {
-		'h': 80, // Gets overridden during init
-		'l': 55, // Gets overridden during init
-		'showAnomalies': true
-	},
-	'steps': {},
-	'dayView' : {
-		'weekday' : 0,
+	'dayView': {
+		'weekday': 0,
 		'date': '',
-		'dayEpoch' : 0
+		'dayEpoch': 0
 	},
 	'gantt' : {
 		'width': 700,
-		'height': 190,
+		'height': fieldsToDisplay().length * 45, //190,
 		'anomalyThreshold': 10, // number of consecutive anomalous minutes that trigger anomaly color
 		'interval': 120 // in minutes
 	},
@@ -78,13 +133,34 @@ var annotateConfigurations = {
 	'color': "#980002"
 }
 
+function fieldsToDisplay() {
+	// Make list of fields we want to display in the viz
+	var keys = [];
+	for (var k in fields) {
+		if (fields[k].display) {
+			keys.push(k);
+		}
+	}
+	return keys;
+}
+
+function anomalyFieldsToDisplay() {
+	var keys = [];
+	for (var k in fields) {
+		if (fields[k].anomalies.display) {
+			keys.push(k);
+		}
+	}
+	return keys;
+}
+
 var userid;
 var dbNotes;
 
 $(document).ready( function() {
 	// Make sure to change both lines below when switching between users
 	userid = 14;
-	mainData = loadData(user14);
+	//mainData = loadData(user14);
 
 	// Load stuff from database
 	url = 'getinit/' + String(userid);
@@ -96,12 +172,16 @@ $(document).ready( function() {
 	request.done(function(data) {
 		// Init values loaded.
 		initValues = JSON.parse(data);
+		dbData = initValues['data'];
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
-		setSettings(dbSettings);
 
+		// Assign database settings to app variables
+		setSettings(dbSettings);
+		
 		// Initialize visualization
-		initialize(mainData[0].date_epoch);
+		mainData = loadData(dbData);
+		initialize(mainData[0].epoch);
 
 		// TEMPORARY Uses the change button to update the interval.
 		$("#changeInterval").on("click", function() {
@@ -121,46 +201,96 @@ $(document).ready( function() {
 });
 
 function setSettings(dbSettings) {
-	mainParameters.hr.h = parseFloat(dbSettings['high']);
-	mainParameters.hr.l = parseFloat(dbSettings['low']) ;   
-	$("#hr-high").val(dbSettings['high']);
-	$("#hr-low").val(dbSettings['low']);
+	addSettingsHTML();
+	anomalyFields =  anomalyFieldsToDisplay();
+	for (key in dbSettings) {
+		field = key.split('-')[0];
+		property = key.split('-')[1];
+		if (anomalyFields.indexOf(field) > -1) {
+			// Set settings in app memory
+			if (property == "high") {
+				fields[field].anomalies.h = parseFloat(dbSettings[key]);
+			} else {
+				fields[field].anomalies.l = parseFloat(dbSettings[key]);
+			}
+			$("#" + key).val(dbSettings[key]);
+		}
+	}
+}
+
+function addSettingsHTML() {
+	$.each(anomalyFieldsToDisplay(), function(i, field) {
+		anomaliesConfigTable = "#settings tbody"
+		settingsForm = d3.select(anomaliesConfigTable).append("tr");
+
+		settingsForm
+			.append("td")
+			.text(fields[field].description);
+
+		settingsForm
+			.append("td")
+			.append("input")
+			.attr("type", "text")
+			.attr("style","width: 40px")
+			.attr("name", field + "-low")
+			.attr("id", field + "-low");
+
+		settingsForm
+			.append("td")
+			.append("input")
+			.attr("type", "text")
+			.attr("style","width: 40px")
+			.attr("name", field + "-high")
+			.attr("id", field + "-high");
+	
+	});
+	settingsForm = d3.select(anomaliesConfigTable).append("tr");
+
+	settingsForm
+		.append("td")
+		.attr("colspan", 3)
+		.append("input")
+		.attr("type", "submit")
+		.attr("name", "save-threshold")
+		.attr("value", "Save Changes");
 }
 
 function initialize(start) {
 	getWeekData(start);
 	buildGantt();
+	// The line below adds HTML tags for each field.
+	// I don't like that we do this now as opposed when we actually fill
+	// the tags with field content when a field is clicked.
+	addFieldTags();
+}
+
+function addFieldTags() {
+	$.each(fieldsToDisplay(), function(i, field) {
+		d3.select('#fields')
+				.append('div')
+				.attr('id', field)
+				.attr('class', "subsection");
+	});
 }
 
 function loadData(file) {
 	var dataDict = [];
 	$.each(file, function(i,obj) {
-		// if (dataDict[obj['id'].trim()] === undefined) {
-		// 	dataDict[obj['id'].trim()] = [];
-		// }
-		epoch = parseInt(obj['date_epoch'].trim());
-		// dataDict[obj['id'].trim()].push({
-		dataDict.push({
-			"airTemp": obj['airTemp'].trim(),
-			"calories": obj['calories'].trim(),
-			"date_human": obj['date_human'].trim(),
-			"date_epoch": epoch,
-			"gsr": obj['gsr'].trim(),
-			"hr": obj['hr'].trim(),
-			"skinTemp": obj['skinTemp'].trim(),
-			"steps": obj['steps'].trim()
-		});
-		// TODO: Make use of the following code
-		if (minEpoch == -1 & maxEpoch == -1) {
-			minEpoch = epoch;
-			maxEpoch = epoch;
+
+		datetime = new Date(obj['time'].trim());
+		epoch = datetime.getTime() / 1000.0;
+
+		datum = {};
+		for (var property in fields) {
+    		if (obj.hasOwnProperty(property)) {
+    			datum[property] = obj[property].trim();
+		   	} else if (fields[property].required) {
+		   		alert("EDF data missing required " + property + " property.")
+		   		return null;
+		   	}
 		}
-		if (epoch < minEpoch) {
-			minEpoch = epoch;
-		}
-		if (epoch > maxEpoch) {
-			maxEpoch = epoch;
-		}
+		datum['epoch'] = epoch;
+		dataDict.push(datum);
 	});
 	return dataDict;
 }
@@ -174,7 +304,7 @@ function cleanData(data) {
 	var min;
 	$.each(data,function(i,d) {
 		min = (d.epoch%3600)/60;
-		hour = new Date(d.date).getHours()
+		hour = new Date(d.date).getUTCHours()
 		minday = (hour*60)+min;
 		clean[minday] = d;
 	});
@@ -183,11 +313,11 @@ function cleanData(data) {
 }
 
 
-function buildMainTable() {
-	var scan = mainData[0];
-	var str = "<td>Mr. John Doe</td><td>"+scan['hr']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['hr']+"</td><td></td>"
-	$("#mainTableBody").append()
-}
+// function buildMainTable() {
+// 	var scan = mainData[0];
+// 	var str = "<td>Mr. John Doe</td><td>"+scan['HR']+"</td><td>"+scan['skinTemp']+"</td><td>"+scan['HR']+"</td><td></td>"
+// 	$("#mainTableBody").append()
+// }
 
 /*
 	Function that constructs the main week chart Gantt style based on the information of the week for all the different measurements. 
@@ -198,7 +328,6 @@ function buildGantt() {
 
 	var weekdayNames = [];
 	$.each(userConfiguration.week.data, function(i,day) {
-		// weekdayNames.push(getDateDay(day[0]));
 		weekdayNames.push(day[0]);
 	})
 
@@ -217,7 +346,6 @@ function buildGantt() {
 		.enter()
 		.append('text')
 			.text(function(d) {
-				// console.log(d);
 				return getDateDay(d);
 			})
 			.attr({
@@ -234,7 +362,7 @@ function buildGantt() {
 			})
 			.on({
 				'click': function (d,i) {
-					createDayCharts(i,d.date_epoch);
+					createDayCharts(i,d.epoch);
 				}
 			});
 
@@ -269,40 +397,38 @@ function buildGantt() {
 		Inner function that will create and append to the Gantt Svg the group of block for each measurement
 	*/
 	function addMeasurementBlocks(field,y) {
-		// var vals = [];
-		// $.map(weekData, function(obj,k) {
-		// 	if (obj[field] =='None') 
-		// 		vals.push(0)
-		// 	else
-		// 		vals.push(parseInt(obj[field]));
-		// })
-
-		var color = d3.scale.linear()
-			.domain([0,100])
-			.range(['white','black']);
 
 		var values =[];
-		if (field == 'hr') {
-			//values = getAverageMeasurement(weekData,mainParameters.gantt.interval,field);
+		if (fields[field].chartType == chartTypes.line) {			
 			values = getNonNullMeasurement(weekData,mainParameters.gantt.interval,field);
-		} else if (field == 'steps') {
-			values = getAggregateMeasurement(weekData,mainParameters.gantt.interval,field);
-		} else { 
-			//temporary just for testing calories and other measurements
+		} else {
 			values = getAggregateMeasurement(weekData,mainParameters.gantt.interval,field);
 		}
 		
 		var blockWidth = Math.floor(mainParameters.gantt.width/(values.length)-1);
 		if (blockWidth < 1) {
-			// Color a big block if it contains at least 5 minutes of continuous combined anomalies
 			alert("Error: Gantt block interval too small.");
 		}
-		// console.log("Blocks : "+ values.length)
-		// console.log('blockWidth: ' + blockWidth);
 		if (values.length > 0) {
+			// Add measurement headers
+			d3.select('div.ganttSide').append('div')
+				.attr('class', 'measurement ' + field)
+				.text(fields[field].description)
+				.on("click", function() {
+					// Activate menu item
+					$(".measurement").removeClass("active");
+					$(this).addClass("active");
+
+					// Show measurement data (use set timeout to force above code to execute first)
+					mname = $(this).attr("class").split(' ')[1];
+					setTimeout(function() {
+						showFieldWeek(mname);
+					}, 1 );
+				});
+				
 			// Creating and appending the rectangles that will represent the x-hour blocks of time.
 			svg.append('g')
-				.attr('class',fields)
+				.attr('class',field)
 				.selectAll('rect')
 				.data(values)
 				.enter()
@@ -315,7 +441,6 @@ function buildGantt() {
 					},
 					'y': 40+y,
 					'fill': function(d) {
-						//return color(d['value']);
 						fillVal = "#e9e9e9"; // 0
 						if (d['value'] > 50) { // percent of interval that is nonnull values
 							if (parseInt(d['anomalies']['maxConsecutive']) > mainParameters.gantt.anomalyThreshold) {
@@ -326,7 +451,7 @@ function buildGantt() {
 								fillVal = "#777";
 							}
 						}
-						return fillVal; //color(fillVal);
+						return fillVal;
 					},
 					'value': function(d) {
 						return d['value']
@@ -337,9 +462,17 @@ function buildGantt() {
 		}
 	}
 
-	$.each(['hr','steps','calories','gsr','skinTemp'], function(i,key) {
-		// if (key == 'steps' || key == 'heartrate' || key =='calories')
+	$.each(fieldsToDisplay(), function(i,key) {
 		addMeasurementBlocks(key, i*33);
+	});
+
+	showGantt();
+}
+
+function showGantt() {
+	$("#loading").fadeOut("fast", function() {
+		$("#gantt").fadeIn();
+		$("#settings").fadeIn();
 	});
 }
 
@@ -356,28 +489,36 @@ function getNonNullMeasurement(data, interval, field) {
 	$.each(data, function(i, d) {
 		minute = i + 1;
 		count++;
-		if (d[field] != 'None') {
+		endOfInterval = (minute % interval == 0);
+		if (d[field] != "") {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
-			if (mainParameters[field] != undefined) {
-				if (value > mainParameters[field].h) {
-					anomalyOver.push(d);
-				} else if (value < mainParameters[field].l) {
-					anomalyUnder.push(d);
-				}
-				if (value > mainParameters[field].h || value < mainParameters[field].l) {
-					// Begin chain of consecutive anomalies
-					consecutiveAnomalies++;
-				} else if (consecutiveAnomalies > 1) {
-					// If there are 0 or 1 consecutive anomalies, we don't care
-					// If there are two or more consecutive anomalies, we consider that a chain.  That chain is now broken.
-					maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
-					consecutiveAnomalies = 0;
-				}
+
+			if (value > fields[field].anomalies.h) {
+				anomalyOver.push(d);
+				consecutiveAnomalies++;
+			} else if (value < fields[field].anomalies.l) {
+				anomalyUnder.push(d);
+				consecutiveAnomalies++;
 			}
+			if ((value < fields[field].anomalies.h && 
+				value > fields[field].anomalies.l && 
+				consecutiveAnomalies > 1)) {
+				// If there are 0 or 1 consecutive anomalies, we don't care
+				// If there are two or more consecutive anomalies, we consider that a chain.  That chain is now broken.
+				maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
+				consecutiveAnomalies = 0;
+			}
+
 		}
-		if (minute % interval == 0) {
+
+		if (endOfInterval) {
+			maxConsecutiveAnomalies = Math.max(consecutiveAnomalies, maxConsecutiveAnomalies);
+			consecutiveAnomalies = 0;
+		}
+
+		if (endOfInterval) {
 			var perc = 0;
 			if (measurements > 0) {
 				perc = (measurements / count) * 100;
@@ -405,57 +546,6 @@ function getNonNullMeasurement(data, interval, field) {
 	});
 	return results;
 }
-
-function getAverageMeasurement(data,interval,field) {
-	var agg =0;
-	var results = []
-	var minute;
-	var measurements =0;
-	var anomalyOver = []; 
-	var anomalyUnder = [];
-
-	$.each(data,function(i,d) {
-		minute = i+1;
-		if (d[field]!='None') {
-			var value = parseInt(d[field]);
-			agg += value;
-			measurements++;
-			if (mainParameters[field] != undefined) {
-				if (value > mainParameters[field].h) {
-					anomalyOver.push(d);
-				}
-				else if (value < mainParameters[field].l) {
-					anomalyUnder.push(d);
-				}
-			}
-		}
-
-		if (minute%interval == 0 ) {
-			var avg = 0;
-			if (measurements> 0)
-				avg = agg/measurements;
-
-			var res = {
-				'value': avg,
-				'measurements': measurements,
-				'average': avg,
-				'anomalies': {
-					'over': anomalyOver,
-					'under': anomalyUnder,
-					'total': anomalyOver.length + anomalyUnder.length
-				}
-			}
-			results.push(res);
-			
-			agg = 0;
-			measurements = 0;
-			anomalyOver= [];
-			anomalyUnder = [];
-		}
-	})
-	return results;
-}
-
 	
 function getAggregateMeasurement(data,interval,field) {
 	var agg =0;
@@ -467,19 +557,18 @@ function getAggregateMeasurement(data,interval,field) {
 
 	$.each(data,function(i,d) {
 		minute = i+1;
-		if (d[field]!='None') {
+		if (d[field]!='') {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
-			if (mainParameters[field] != undefined) {
-				if (value > mainParameters[field].h) {
+			if (fields[field].anomalies.display) {
+				if (value > fields[field].anomalies.h) {
 					anomalyOver.push(d);
 				}
-				else if (value < mainParameters[field].l) {
+				else if (value < fields[field].anomalies.l) {
 					anomalyUnder.push(d);
 				}
 			}
-			
 		}
 
 		if (minute%interval == 0 ) {
@@ -508,12 +597,12 @@ function getAggregateMeasurement(data,interval,field) {
 /*
 	Function that creates the configuration file that is needed to create the different chart for each measurement. 
 */
-function createConfigFile(data,target,id,className,field) {
-	var configData = setConfigData(data,field);
+function createConfigFile(data,target,id,field) {
+	var configData = setConfigData(data, field);
 	return {
 		target: target,
 		id: id,
-		className: className,
+		className: field,
 		margin: {
 			'top': chartConfigurations.dayView.charts.margin.top,
 			'right': chartConfigurations.dayView.charts.margin.right,
@@ -521,8 +610,8 @@ function createConfigFile(data,target,id,className,field) {
 			'left': chartConfigurations.dayView.charts.margin.left
 		},
 		day: getDateDay(data[0]),
-		date: new Date(data[0].date_human),
-		epoch: data[0].date_epoch,
+		date: new Date(data[0].time),
+		epoch: data[0].epoch,
 		width: chartConfigurations.dayView.charts.width,
 		height: chartConfigurations.dayView.charts.height,
 		data: configData.simple,
@@ -544,9 +633,9 @@ function getDataAnomalies(data,field) {
 	var low = false;
 	var prev;
 	var anomalies = { high:[], low:[]};
-	if ('showAnomalies' in mainParameters[field]) {
+	if (fields[field].anomalies.display) {
 		$.each(data, function(i,d) {
-			if (d[field] > mainParameters[field].h) {
+			if (d[field] > fields[field].anomalies.h && d[field] != "") {
 				if (low) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -564,7 +653,7 @@ function getDataAnomalies(data,field) {
 			}
 			else {
 				if (high) {
-					if (temp[0].date_epoch != data[i-1].date_epoch) {
+					if (temp[0].epoch != data[i-1].epoch) {
 						prev = data[i-1];
 						prev['id'] = (i-1);
 						temp.push(prev);	
@@ -575,7 +664,7 @@ function getDataAnomalies(data,field) {
 				}
 			}
 			
-			if (d[field] < mainParameters[field].l) {
+			if (d[field] < fields[field].anomalies.l && d[field] != "") {
 				if (high) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -593,12 +682,13 @@ function getDataAnomalies(data,field) {
 			}
 			else {
 				if (low) {
-					if (temp[0].date_epoch != data[i-1].date_epoch) {
+					if (temp[0].epoch != data[i-1].epoch) {
 						prev = data[i-1];
 						prev['id'] = (i-1);
 						temp.push(prev);
 					}
 					anomalies.low.push(temp);
+
 					temp = [];
 					low = false;
 				}
@@ -614,7 +704,7 @@ function getDataAnomalies(data,field) {
 */ 
 function getDateDay(date) {
 	var weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-	var d = new Date(date['date_human']);
+	var d = new Date(date['time']);
 	return weekdays[d.getDay()];
 }
 
@@ -623,18 +713,19 @@ function getDateDay(date) {
 
 	It also takes in consideration the type of chart that will be built so it can transform/aggregate the data in the correct way (aggregate for bars, average for lines)
 */
-function setConfigData(data,field) {
+function setConfigData(data, field) {
 	var configData = { 
 			'simple': [],
 			'full': []
 		}
 	var aggregate = 0;
-	if (field == 'steps') {
+
+	if (fields[field].chartType == chartTypes.bar) {
 		$.each(data, function(i,d) {
-			var time = new Date(d.date_human);
+			var time = new Date(d.time);
 			var minute = i+1;
-			if (d[field] !== 'None' && d.date_epoch !=="") {	
-				aggregate+=parseInt(d[field]);
+			if (d[field] !== '' && d.epoch !=="") {	
+				aggregate += parseInt(d[field]);
 			}
 
 			if (minute%mainParameters.general.interval == 0) {
@@ -648,10 +739,10 @@ function setConfigData(data,field) {
 	else {
 		$.each(data, function(i,d) {
 			//selects intervals of minutes (600 = 10 mins, 300 = 5 mins, etc...)
-			var time = new Date(d.date_human);
-			if (time.getMinutes()%mainParameters.general.interval == 0) {
-				//if (d[field] === 'None' || d.date_epoch =="") {	
-				if (d.date_epoch =="") {	
+			var time = new Date(d.time);
+			if (time.getMinutes() % mainParameters.general.interval == 0) {
+				//if (d[field] === 'None' || d.epoch =="") {	
+				if (d.epoch == "") {	
 					configData.simple.push("0");
 				}
 				else {
@@ -698,12 +789,21 @@ function createLineChart(config) {
 	    width = config.width;
 	    height = config.height;
 
-	var parseDate = d3.time.format("%Y-%m-%d").parse;
+	var xStart = 0;
+	var xEnd = config.data.length;
 
-	var x = d3.scale.linear()
-		.domain([0, config.data.length])
+	var xBase = d3.scale.linear()
+		.domain([xStart, xEnd])
 	    .range([0, width]);
 
+	// Since the choice of x-scale will depend on whether we're zoomed in,
+	// we can define multiple x's, but set the one we're currently using
+	// in xCurrent.
+	var x = xBase;
+
+	var zoomData = config.data;
+
+	// TODO: kill function below and use x.invert
 	var xInverse = d3.scale.linear()
 		.domain([0, width])
 	    .range([0,config.data.length]);	
@@ -711,7 +811,7 @@ function createLineChart(config) {
 	var minMaxValue = minMaxMixedArray(config.data);
 	if (minMaxValue[0] === undefined || minMaxValue[1] === undefined) {
 		minMaxValue[0] = 0;
-		minMaxValue[1] = 110; // 110 max blood pressure
+		minMaxValue[1] = 100;
 	}
 
 	var y = d3.scale.linear()
@@ -730,20 +830,16 @@ function createLineChart(config) {
 	    .scale(y)
 	    .orient("left");
 
-	var line = d3.svg.line().defined(function(d) { return d != 'None'})
+	var line = d3.svg.line().defined(function(d) { return d != ''})
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return y(d); });
 
-	var lineZoom = d3.svg.line().defined(function(d) { return d != 'None'})
+	var lineZoom = d3.svg.line().defined(function(d) { return d != ''})
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return yZoom(d); });
 
 	getDayHeadersForWeeklyCharts(config.target,config.id,config.className,config.day);
-		
-	// This would add the month and day underneath the day of the week	
-	// dayHeader.append('span')
-	// 	.text((config.date.getMonth()+1) +"/"+config.date.getDate());
-		
+	
 	d3.select(config.target + " #" + config.id)
 		.append('div')
 			.attr("class","chartDayArea");
@@ -751,6 +847,7 @@ function createLineChart(config) {
 	// Create SVGs for day line charts (zoomed and all-day)
 	var dayContainer = d3.select("#" + config.id + " .chartDayArea");
 
+	// This is the taller SVG where "zoomed in" chart appears.
 	var svgZoom = dayContainer.append("svg")
 		.attr("width", width + margin.left + margin.right)
 		.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
@@ -758,6 +855,32 @@ function createLineChart(config) {
 		.append("g")
 			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+	// Add rectangle to track cursor
+	svgZoom.append("rect")
+		.attr("class", "rectTrackCursor")
+		.attr("width", width + margin.right)
+	    .attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
+	    .attr("fill", "#FFFFFF")
+	    .on("mouseover", cursorShow)
+	    .on("mouseout", cursorHide)
+	    .on("mousemove", trackCursor);
+
+	// Add dot to highlight cursor position
+	var cursorDot = svgZoom.append("circle")
+		.attr("class", "cursorXPos")
+		.attr("cx", 0)
+		.attr("cy", 0)
+		.attr("r", 3)
+		.style("display", "none");
+
+	// Add text to show values at cursor
+	var cursorText = svgZoom.append("text")
+		.text("hello")
+		.attr("y", 12)
+		.attr("x", 0)
+		.attr("class", "cursorText");
+
+	// This is the shorter SVG where you can manipulate zoom
 	var svg = dayContainer.append("svg")
 		.attr("width", width + margin.left + margin.right)
 	    .attr("height", height + margin.top + margin.bottom)
@@ -768,7 +891,7 @@ function createLineChart(config) {
 
 	// Make background rectangle to handle mouse events
 	svg.append("rect")
-		.attr("width", width + margin.left + margin.right)
+		.attr("width", width + margin.right)
 	    .attr("height", height + margin.top + margin.bottom)
 	    .attr("fill", "#FFFFFF");
 
@@ -779,24 +902,17 @@ function createLineChart(config) {
 		.attr("height", height + margin.top + margin.bottom)
 		.attr("fill", "#EEE");
 
-	// svg.append("text")
-	//   .attr("transform", "rotate(-90)")
-	//   .attr("y", 6)
-	//   .attr("dy", ".71em")
-	//   .style("text-anchor", "end");
-
 	svg.append("path")
 		.datum(config.data)
 		.attr("class", "line")
 		.attr("d", line)
 		.attr("transform","translate("+(x(1)-1)+")");
 
-	svgZoom.append("path")
+	pathZoom = svgZoom.append("path")
 		.datum(config.data)
 		.attr("class", "lineZoom")
 		.attr("d", lineZoom)
 		.attr("transform","translate("+(x(1)-1)+")");
-
 
 	var anomalyLine = d3.svg.line()
 		.x(function(d) { return x(d.x); })
@@ -806,19 +922,56 @@ function createLineChart(config) {
 		.x(function(d) { return x(d.x); })
     	.y(function(d) { return yZoom(d.y); });
 
-	AddAnomalyLine(config,svg,mainParameters.hr.h, anomalyLine, y);
-	AddAnomalyLine(config,svg,mainParameters.hr.l, anomalyLine, y);
-	AddAnomalyLine(config,svgZoom,mainParameters.hr.h, anomalyLineZoom, yZoom);
-	AddAnomalyLine(config,svgZoom,mainParameters.hr.l, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svg,fields[config.className].anomalies.h, anomalyLine, y);
+	AddAnomalyLine(config,svg,fields[config.className].anomalies.l, anomalyLine, y);
+	AddAnomalyLine(config,svgZoom,fields[config.className].anomalies.h, anomalyLineZoom, yZoom);
+	AddAnomalyLine(config,svgZoom,fields[config.className].anomalies.l, anomalyLineZoom, yZoom);
 
-	if (mainParameters.hr.showAnomalies) {
-		AddAnomaliesToChart(svg, config.anomalies.high,"h", x, y);
-		AddAnomaliesToChart(svg, config.anomalies.low,"l", x, y);
-		AddAnomaliesToChart(svgZoom, config.anomalies.high,"h", x, yZoom);
-		AddAnomaliesToChart(svgZoom, config.anomalies.low,"l", x, yZoom);
+	if (fields[config.className].anomalies.display) {
+		AddAnomaliesToChart(svg, config.anomalies.high, "h", y);
+		AddAnomaliesToChart(svg, config.anomalies.low, "l", y);
+		AddAnomaliesToChart(svgZoom, config.anomalies.high, "h", yZoom);
+		AddAnomaliesToChart(svgZoom, config.anomalies.low, "l", yZoom);
 	}
 
-	// Handle zooming
+	// Handle cursor tracking on taller SVG
+	function trackCursor() {
+		var xPixels = d3.mouse(this)[0];
+		var xIndex = Math.floor(x.invert(xPixels));
+		var xDiscrete = x(xIndex);
+		var yPixels = zoomData[xIndex];
+
+		if (yPixels == "") {
+			yPixels = 0;
+		} else {
+			trackedYPos = yPixels;
+		}
+
+		cursorDot
+			.attr("cx", xDiscrete)
+			.attr("cy", yZoom(yPixels))
+			.style("display", function() { return (yPixels == 0) ? "none":"block" });
+
+		cursorText
+			.text(cursorTrackText(xStart + xIndex, yPixels))
+			.style("display", function() { return (yPixels == 0) ? "none":"block" });
+		
+	};
+
+	function cursorShow() {
+		cursorDisplay(true);
+	}
+
+	function cursorHide() {
+		cursorDisplay(false);
+	}
+
+	function cursorDisplay(bool) {
+	    cursorDot.style("display", bool ? "block":"none");
+	    cursorText.style("display", bool ? "block":"none");
+	}
+
+	// Handle zooming on shorter SVG
   	svg.on("mousedown", function() {
   		// Store x-value
   		var rect = d3.select(this);
@@ -854,23 +1007,115 @@ function createLineChart(config) {
     		w.on("mousemove", null).on("mouseup", null);
     		if (xNow !== undefined) {
 	    		// Refresh zoomed chart
-	    		minIndex = Math.floor(xInverse(Math.min(xDown, xNow)));
-				maxIndex = Math.floor(xInverse(Math.max(xDown, xNow)));
+	    		xStart = Math.floor(xInverse(Math.min(xDown, xNow)));
+				xEnd = Math.floor(xInverse(Math.max(xDown, xNow)));
 				// TODO: we're assuming here that every index is a minute of data
-				zoomData = config.data.slice(minIndex,maxIndex);
+				zoomData = config.data.slice(xStart,xEnd);
 
-				anomaliesLow = AnomaliesSubset(minIndex,maxIndex,config.anomalies.low);
-				anomaliesHigh = AnomaliesSubset(minIndex,maxIndex,config.anomalies.high);
+				anomaliesLow = AnomaliesSubset(xStart,xEnd,config.anomalies.low);
+				anomaliesHigh = AnomaliesSubset(xStart,xEnd,config.anomalies.high);
 				
-	    		RefreshZoomChart(zoomData, config, lineZoom, yZoom, anomaliesLow, anomaliesHigh);
+	    		RefreshZoomChart(zoomData, config, anomaliesLow, anomaliesHigh);
     		} else {
     			// Clear rectangle and reset zoom
+    			xStart = 0;
+    			xEnd = config.data.length;
   				rectZoom.attr("transform", "translate(0,0)")
   				rectZoom.attr("width", width + margin.left + margin.right)
-    			RefreshZoomChart(config.data, config, lineZoom, yZoom, config.anomalies.low, config.anomalies.high)
+    			RefreshZoomChart(config.data, config, config.anomalies.low, config.anomalies.high)
     		}
   		}
+
 	});
+
+	function RefreshZoomChart(data, config, anomaliesLow, anomaliesHigh) {
+
+		// Set new zoom data
+		zoomData = data;
+
+		// Reset the scale for the zoomed line
+		x = d3.scale.linear()
+			.domain([0, data.length])
+		    .range([0, config.width]);
+
+		// Create a new line with the new scale
+		var line = d3.svg.line().defined(function(d) { return d != ''})
+		    .x(function(d,i) { return x(i); })
+		    .y(function(d) { return yZoom(d); });
+
+		// Select the zoomed line
+		svgZoom = d3.select("#" + config.id + " div svg.lineChartZoom g");
+		lineZoom = svgZoom.select("path.lineZoom");
+		
+		// Update the zoomed line data
+		lineZoom
+			.data([zoomData])
+			.attr("d", line);
+
+		// Save important rectangle before clearing all of the anomaly rectangles
+		rectTrackCursor = svgZoom.select(".rectTrackCursor").node();
+
+		// Remove all rectangles (to clear anomalies)
+		svgZoom.selectAll("rect").remove();
+
+		// Re-insert cursor-tracking rectangle to top of child list
+		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
+
+		// Add anomalies
+		if (fields[config.className].anomalies.display) {
+			AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", yZoom);
+			AddAnomaliesToChart(svgZoom, anomaliesLow, "l", yZoom);
+		}
+	}
+
+	function AddAnomaliesToChart(targetSvg, anomalies, type, y) {
+		$.each(anomalies, function(i,d) {
+			if (d.length>1) {
+				targetSvg.append("rect")
+					.attr("x", function() {
+						return x(d[0].id);
+					})
+					.attr("y", function() {
+						if (type != "h") {
+							return y(fields[config.className].anomalies.l);
+						} else {
+							return 0;
+						}
+					})
+					.attr("width", function() {
+						var w = x(d[1].id - d[0].id);
+						return w;
+					})
+					.attr("height", function() {
+						if (type != "h") {
+							return y(fields[config.className].anomalies.l);
+						} else {
+							return y(fields[config.className].anomalies.h);
+						}
+					})
+					.attr("fill", function() {
+						if (isAnnotated(d[0])) {
+							return annotateConfigurations.color
+						} else {
+							return "#555555"
+						}
+					})
+					.attr("class", "heartAnomaly")
+					.on("mousedown", function() {
+						openAnomalyDialog(d, this);
+	 				});
+			}
+		});
+	}
+}
+
+function cursorTrackText(timeIndex, val) {
+	hours = timeIndex % 3600;
+	minutes = hours % 60;
+	hours = (hours - minutes) / 60;
+	minPad = (String(minutes).length == 1) ? "0":"";
+	time = hours + "h" + minPad + minutes;
+	return "Time: " + time + ", Value: " + val;
 }
 
 function AddAnomalyLine(config,svg,value,line, y) {
@@ -889,46 +1134,6 @@ function AddAnomalyLine(config,svg,value,line, y) {
 		.text(value);
 }
 
-function AddAnomaliesToChart(targetSvg, anomalies, type, x, y) {
-	$.each(anomalies, function(i,d) {
-		if (d.length>1) {
-			targetSvg.append("rect")
-				.attr("x", function() {
-					return x(d[0].id);
-				})
-				.attr("y", function() {
-					if (type != "h") {
-						return y(mainParameters.hr.l);
-					} else {
-						return 0;
-					}
-				})
-				.attr("width", function() {
-					var w = x(d[1].id - d[0].id);
-					return w;
-				})
-				.attr("height", function() {
-					if (type != "h") {
-						return y(mainParameters.hr.l);
-					} else {
-						return y(mainParameters.hr.h);
-					}
-				})
-				.attr("fill", function() {
-					if (isAnnotated(d[0])) {
-						return annotateConfigurations.color
-					} else {
-						return "#555555"
-					}
-				})
-				.attr("class", "heartAnomaly")
-				.on("mousedown", function() {
-					openAnomalyDialog(d, this);
- 				});
-		}
-	});
-}
-
 function isAnnotated(d) {
 	return (getAnnotation(d) != '');
 }
@@ -936,7 +1141,7 @@ function isAnnotated(d) {
 function getAnnotation(d) {
 	if (dbNotes.length > 0) {
 		for (i = 0; i < dbNotes.length; i++) {
-			if (dbNotes[i].key.epoch == d.date_epoch) {
+			if (dbNotes[i].key.epoch == d.epoch) {
 				return dbNotes[i].value
 			}
 		}
@@ -1000,7 +1205,7 @@ function openAnomalyDialog(d, rect) {
 			var values = {
     			'key': {
     				'userid': userid,
-					'epoch': d[0]['date_epoch']
+					'epoch': d[0]['epoch']
 				},
     			'value': notes.val()
     		};
@@ -1087,42 +1292,6 @@ function AnomaliesSubset(minIndex,maxIndex,anomalies) {
 }
 
 /*
-	Function that refreshes the zoomed line chart to show the data within the latest zoom bounds
-*/
-function RefreshZoomChart(data, config, line, y, anomaliesLow, anomaliesHigh) {
-
-	// Reset the scale for the zoomed line
-	var x = d3.scale.linear()
-		.domain([0, data.length])
-	    .range([0, config.width]);
-
-	// Create a new line with the new scale
-	var line = d3.svg.line().defined(function(d) { return d != 'None'})
-	    .x(function(d,i) { return x(i); })
-	    .y(function(d) { return y(d); });
-
-	// Select the zoomed line
-	svgZoom = d3.select("#" + config.id + " div svg.lineChartZoom g");
-	lineZoom = svgZoom.select("path.lineZoom");
-	
-	// Update the zoomed line data
-	lineZoom
-		.data([data])
-		.attr("d", line);
-
-	// Remove anomalies
-	svgZoom.selectAll("rect").remove();
-
-	// Add anomalies
-	if (mainParameters.hr.showAnomalies) {
-		AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", x, y);
-		AddAnomaliesToChart(svgZoom, anomaliesLow, "l", x, y);
-	}
-
-}
-
-
-/*
 	Function that selects the data of the chosen week and sets it up in the userConfiguration element as well as returning it as an array. 
 
 	This function gets the data of all the fields for the 1440 minutes of everyday.
@@ -1153,22 +1322,17 @@ function getDayData(start,end) {
 	//sets up a fresh object with all the minutes of the day
 	var clean = {};
 	for (var i = 0; i<= 1439 ; i++) {
-		clean[i] = {
-			hr : 0,
-			steps: 0,
-			calories: 0,
-			gsr: 0,
-			skinTemp: 0,
-			airTemp: 0,
-			date_human: '',
-			date_epoch: ''
-		};
+		var datum = {}
+		for (var property in mainData[0]) {
+			datum[property] = '';
+		}
+		clean[i] = datum;
 	}
 	var minday; //minute of the day
 	var day = [];
 	$.each(mainData, function(i,d) {
-		if (parseInt(d.date_epoch) >= start && parseInt(d.date_epoch) < end) {
-			minday = (new Date(d['date_human']).getHours() *60) + ((d['date_epoch']%3600)/60)
+		if (parseInt(d.epoch) >= start && parseInt(d.epoch) < end) {
+			minday = (new Date(d.time).getUTCHours() *60) + ((d.epoch % 3600)/60)
 			clean[minday] = d;
 		}
 	});
@@ -1180,7 +1344,7 @@ function getDayData(start,end) {
 }
 
 
-function createDayCharts(start,startEpoch) {
+function createDayCharts(start, startEpoch) {
 	$(".subsection").hide();
 	$(".subsection").html('');
 	$("#dayView").toggle();
@@ -1188,26 +1352,24 @@ function createDayCharts(start,startEpoch) {
 	userConfiguration.active = "dayView";
 	buildTimeScale("dayView",["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
 
-	loadWeekConfigData('hr',userConfiguration.week.start);
-	var hrConfig = userConfiguration.week.days[start];
-	hrConfig.target = "#dayView";
-	hrConfig.height = 130;
-	createLineChart(hrConfig);
-	$("#"+hrConfig.id +" h3").html("Heart<br>Rate");
-	$("#"+hrConfig.id +" h3").addClass("dailyHeader");
-
-
-	loadWeekConfigData('steps',userConfiguration.week.start);
-	var paConfig = userConfiguration.week.days[start];
-	paConfig.target = "#dayView";
-	paConfig.height = 130;
-	createBarChart(paConfig);
-	$("#"+paConfig.id +" h3").html("Physical<br>Activity");
-	$("#"+paConfig.id +" h3").addClass("dailyHeader");
+	var config;
+	$.each(fieldsToDisplay(), function(i,field) {
+		loadWeekConfigData(field, userConfiguration.week.start);
+		config = userConfiguration.week.days[start];
+		config.target = "#dayView";
+		config.height = 130;
+		if (fields[field].chartType == chartTypes.line) {
+			createLineChart(config);	
+		} else if (fields[field].chartType == chartTypes.bar) {
+			createBarChart(config);
+		}		
+		$("#" + config.id + " h3").html(fields[field].description);
+		$("#" + config.id + " h3").addClass("dailyHeader");
+	});
 
 	mainParameters.dayView.dayEpoch = startEpoch;
 	mainParameters.dayView.weekday = start;
-	mainParameters.dayView.date = paConfig.date;
+	mainParameters.dayView.date = config.date;
 
 	setBreakdownHeader('daily', '');	
 }
@@ -1264,35 +1426,23 @@ function buildTimeScale(target,data) {
 	});	
 }
 
-$(".measurement").click(function() {
-	// Activate menu item
-	$(".measurement").removeClass("active");
-	$(this).addClass("active");
-
-	// Show measurement data (use set timeout to force above code to execute first)
-	mname = $(this).attr("class").split(' ')[1];
-	setTimeout(function() {
-		showMeasurementWeek(mname);
-	}, 1 );
-	
-});
-
-function showMeasurementWeek(mname) {
-	userConfiguration.active = mname;
+function showFieldWeek(field) {
+	userConfiguration.active = field;
 	$(".subsection").hide();
-	$("#" + mname).html('');
-	$("#" + mname).toggle();
+	$("#" + field).html('');
+	$("#" + field).toggle();
 
-	buildTimeScale(mname, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-	createWeekChart(mname, userConfiguration.week.start);
+	buildTimeScale(field, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+	createWeekChart(field, userConfiguration.week.start);
 }
 
-function loadWeekConfigData(category,start) {
+function loadWeekConfigData(field, start) {
 	var week = getWeekData(start);
 	var max = 0;
 	userConfiguration.week.days = [];
 	$.each(week, function(i,d) {
-		userConfiguration.week.days.push(createConfigFile(d,'#'+category,category+i,category.toLowerCase(),category.toLowerCase()));
+		config = createConfigFile(d, '#' + field, field + i, field)
+		userConfiguration.week.days.push(config);
 		max = getWeekMax(userConfiguration.week.days[i].data, max);
 	});
 	userConfiguration.week.maxValue = max;
@@ -1303,17 +1453,16 @@ function loadWeekConfigData(category,start) {
 
 	asd
 */
-function createWeekChart(category,start, shortname) {
+function createWeekChart(field, start) {
 	$("#changeIntervalSection").show();
-	loadWeekConfigData(category,start);
-	setBreakdownHeader('week', category.toLowerCase());
+	loadWeekConfigData(field, start);
+	setBreakdownHeader('week', field);
 	
 	$.each(userConfiguration.week.days, function(i,config) {
-		if (category === 'steps') {
+		if (fields[field].chartType == chartTypes.bar) {
 			createBarChart(config);
-		}
-		else if (category === 'hr') {
-			createLineChart(config);	
+		} else if (fields[field].chartType == chartTypes.line) {
+			createLineChart(config);
 		}
 	})
 }
@@ -1325,8 +1474,6 @@ function getWeekMax(data, current) {
 	else
 		return current;
 }
-
-/********* PHYSICAL ACTIVITY ***********/
 
 function getDayHeadersForWeeklyCharts(target,id,className,day) {
 	var dayHeader = d3.select(target).append('div')
@@ -1341,7 +1488,6 @@ function getDayHeadersForWeeklyCharts(target,id,className,day) {
 		.text(day);
 }
 
-
 function createBarChart(config) {
 	var margin = {
 					top: config.margin.top, 
@@ -1350,8 +1496,6 @@ function createBarChart(config) {
 					left: config.margin.left},
 	    width = config.width;
 	    height = config.height;
-
-	var parseDate = d3.time.format("%Y-%m-%d").parse;
 
 	var x = d3.scale.linear()
 		.domain([0,config.data.length])
@@ -1366,9 +1510,6 @@ function createBarChart(config) {
 	    .ticks(0)
 	    .orient("bottom");
 
-	// var yAxis = d3.svg.axis()
-	//     .scale(y)
-	//     .orient("left");
 	var yAxis = d3.svg.axis()
 				.scale(y)
 				.ticks(4)
@@ -1388,25 +1529,17 @@ function createBarChart(config) {
 				    .append("g")
 				    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 	
-	// svg.append("g")
-	// 	.attr("class", "y axis")
-	// 	.attr("transform", "translate(0,0)")
-	// 	.call(yAxis);
-
 	svg.append("g")
 		.attr("class", "axisBar")
 		.call(yAxis)
-    .append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 0)
+    	.append("text")
+     	.attr("transform", "rotate(-90)")
+      	.attr("y", 0);
 
     svg.append("g")
     	.attr("class", "axisBar")
     	.attr("transform","translate(0," + height + ")")
-    	.call(xAxis)
-      // .attr("dy", ".71em")		
-      // .style("text-anchor", "end")
-      // .text("Price ($)");
+    	.call(xAxis);
 
 	svg.selectAll('rect')
 		.data(config.data)
@@ -1419,7 +1552,6 @@ function createBarChart(config) {
 			},
 			'x': function(d,i) {
 				// if (d>0)
-				// 	console.log("D: " + i+ "  | s: "+d);
 				return (i*barWidth)+.5;
 			},
 			'y': function(d,i) {
@@ -1428,10 +1560,8 @@ function createBarChart(config) {
 		});
 }
 
-
 function getMax(data) {
 	// var max = Math.max.apply(Math,data);
-	// console.log(max); 
 	return Math.max.apply(Math,data);
 }
 
@@ -1442,10 +1572,9 @@ function changeInterval(interval) {
 	if (userConfiguration.active == "dayView") {
 		createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);
 	} else {
-		showMeasurementWeek(userConfiguration.active);
+		showFieldWeek(userConfiguration.active);
 	}
 }
-
 
 function setBreakdownHeader(type, field) {
 	
@@ -1454,19 +1583,19 @@ function setBreakdownHeader(type, field) {
 		var day1 = userConfiguration.week.days[0].date;
 		var day2 = userConfiguration.week.days[userConfiguration.week.days.length -1].date;
 
-		title = oficialNames[userConfiguration.active] + " from "+ MONTHS[day1.getMonth()] + " "+ day1.getDate() + " to "+ MONTHS[day2.getMonth()] + " "+ day2.getDate();
+		title = fields[userConfiguration.active].description + " from "+ MONTHS[day1.getMonth()] + " "+ day1.getDate() + " to "+ MONTHS[day2.getMonth()] + " "+ day2.getDate();
 	}
 	else if (type == 'daily') {
 		var day = mainParameters.dayView.date;
-		title = oficialNames[userConfiguration.active] + " for " + fullWeekdays[day.getDay()] + " " + MONTHS[day.getMonth()] + " " +day.getDate();
+		title = "Metrics for " + fullWeekdays[day.getDay()] + " " + MONTHS[day.getMonth()] + " " +day.getDate();
 	}
 
 	$("#breakdownHeader h3").text(title);
 }
 
 function setGanttHeader(oneWeek) {
-	var day1 = new Date(oneWeek[0].date_human);
-	var day2 = new Date(oneWeek[oneWeek.length - 1].date_human);
+	var day1 = new Date(oneWeek[0].time);
+	var day2 = new Date(oneWeek[oneWeek.length - 1].time);
 	header = MONTHS[day1.getMonth()] + " " + day1.getDate() + " to " + MONTHS[day2.getMonth()] + " " + day2.getDate()
 	$("#gantt h2").text('Exercise data: ' + header);
 }
@@ -1481,19 +1610,17 @@ function advanceTime(period) {
 	else if (period == -1)
 		period = -86400;
 	
-
 	//
 	// Forbid going to day that doesn't have data
 	//
 
 	userConfiguration.week.start = userConfiguration.week.start + period;	
 	initialize(userConfiguration.week.start);
-	console.log(userConfiguration.active);
 	if (userConfiguration.active != '') {
 		if (userConfiguration.active == 'dayView') {
 			createDayCharts(mainParameters.dayView.weekday,mainParameters.dayView.dayEpoch);	
 		} else if (userConfiguration.active != '') {
-			showMeasurementWeek(userConfiguration.active);	
+			showFieldWeek(userConfiguration.active);	
 		}
 	}
 }
