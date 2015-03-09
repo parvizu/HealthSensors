@@ -7,8 +7,10 @@ from flask import make_response, current_app
 import simplejson as json
 import re
 import csv
+import urllib2
 from datetime import timedelta
 from functools import update_wrapper
+from api_requests import APIRequests
 
 app = Flask(__name__)
 LOCAL_PORT = 5000
@@ -21,6 +23,7 @@ if (port != LOCAL_PORT):
 NOTES_DB = "notes"
 SETTINGS_DB = "settings"
 SETTINGS_ANOMALIES_KEY = "anomalies"
+DUMMY_DATA = True
 
 @app.route('/')
 def index():
@@ -28,8 +31,13 @@ def index():
 
 @app.route('/getinit/<userid>', methods = ['GET'])
 def get_init(userid):
+	activities = []
+	if DUMMY_DATA:
+		csv_file, activities = get_api_data()
+	else:
+		csv_file = open('data/user14-edf.csv', 'rU')
+	
 	data = []
-	csv_file = open('data/user14-edf.csv', 'rU')
 	input_file = csv.DictReader(csv_file)
 	for row in input_file:
 		data.append(row)
@@ -39,9 +47,34 @@ def get_init(userid):
 	app_data = { 
 			'data': data, 
 			'notes': notes, 
-			'settings': settings
+			'settings': settings,
+			'activities': activities
 		}
 	return json.dumps(app_data)
+
+def get_api_data():
+	SUBVERB_KEY = "subVerb"
+	STARTTIME_KEY = "startTime"
+	ENDTIME_KEY = "endTime"
+	csv = ""
+	activities = []
+	
+	rs = APIRequests("http://russet.ischool.berkeley.edu:8080/query")
+	j = rs.get_test_patient_json()
+	# If no subverb, then use that CSV.  If subverb, use for activity display.
+	for item in j["items"]:
+		if SUBVERB_KEY not in item:
+			# No subverb associated with activity.  Display EDF data.
+			url = item["object"]["url"]
+			csv = urllib2.urlopen(url)
+		else:
+			activity = {}
+			# Get subverb details
+			activity[STARTTIME_KEY] = item[STARTTIME_KEY]
+			activity[ENDTIME_KEY] = item[ENDTIME_KEY]
+			activity[SUBVERB_KEY] = item[SUBVERB_KEY]
+			activities.append(activity)
+	return csv, activities
 
 @app.route('/getnotes/<userid>', methods = ['GET'])
 def get_notes(userid):

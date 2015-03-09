@@ -154,8 +154,13 @@ function anomalyFieldsToDisplay() {
 	return keys;
 }
 
+function missingVal(val) {
+	return (val === "" || val === "None")
+}
+
 var userid;
 var dbNotes;
+var dbActivities;
 
 $(document).ready( function() {
 	// Make sure to change both lines below when switching between users
@@ -175,6 +180,8 @@ $(document).ready( function() {
 		dbData = initValues['data'];
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
+		dbActivities = initValues['activities'];
+		console.log(dbActivities);
 
 		// Assign database settings to app variables
 		setSettings(dbSettings);
@@ -397,7 +404,6 @@ function buildGantt() {
 		Inner function that will create and append to the Gantt Svg the group of block for each measurement
 	*/
 	function addMeasurementBlocks(field,y) {
-
 		var values =[];
 		if (fields[field].chartType == chartTypes.line) {			
 			values = getNonNullMeasurement(weekData,mainParameters.gantt.interval,field);
@@ -410,21 +416,24 @@ function buildGantt() {
 			alert("Error: Gantt block interval too small.");
 		}
 		if (values.length > 0) {
-			// Add measurement headers
-			d3.select('div.ganttSide').append('div')
-				.attr('class', 'measurement ' + field)
-				.text(fields[field].description)
-				.on("click", function() {
-					// Activate menu item
-					$(".measurement").removeClass("active");
-					$(this).addClass("active");
+			gs = d3.select('div.ganttSide')
+			if (gs.select('.' + field).empty()) {
+				// Add measurement headers
+				gs.append('div')
+					.attr('class', 'measurement ' + field)
+					.text(fields[field].description)
+					.on("click", function() {
+						// Activate menu item
+						$(".measurement").removeClass("active");
+						$(this).addClass("active");
 
-					// Show measurement data (use set timeout to force above code to execute first)
-					mname = $(this).attr("class").split(' ')[1];
-					setTimeout(function() {
-						showFieldWeek(mname);
-					}, 1 );
-				});
+						// Show measurement data (use set timeout to force above code to execute first)
+						mname = $(this).attr("class").split(' ')[1];
+						setTimeout(function() {
+							showFieldWeek(mname);
+						}, 1 );
+					});
+				}
 				
 			// Creating and appending the rectangles that will represent the x-hour blocks of time.
 			svg.append('g')
@@ -490,7 +499,7 @@ function getNonNullMeasurement(data, interval, field) {
 		minute = i + 1;
 		count++;
 		endOfInterval = (minute % interval == 0);
-		if (d[field] != "") {
+		if (!missingVal(d[field])) {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
@@ -557,7 +566,7 @@ function getAggregateMeasurement(data,interval,field) {
 
 	$.each(data,function(i,d) {
 		minute = i+1;
-		if (d[field]!='') {
+		if (!missingVal(d[field])) {
 			var value = parseInt(d[field]);
 			agg += value;
 			measurements++;
@@ -635,7 +644,7 @@ function getDataAnomalies(data,field) {
 	var anomalies = { high:[], low:[]};
 	if (fields[field].anomalies.display) {
 		$.each(data, function(i,d) {
-			if (d[field] > fields[field].anomalies.h && d[field] != "") {
+			if (d[field] > fields[field].anomalies.h && !missingVal(d[field])) {
 				if (low) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -664,7 +673,7 @@ function getDataAnomalies(data,field) {
 				}
 			}
 			
-			if (d[field] < fields[field].anomalies.l && d[field] != "") {
+			if (d[field] < fields[field].anomalies.l && !missingVal(d[field])) {
 				if (high) {
 					prev = data[i-1];
 					prev['id'] = (i-1);
@@ -724,7 +733,7 @@ function setConfigData(data, field) {
 		$.each(data, function(i,d) {
 			var time = new Date(d.time);
 			var minute = i+1;
-			if (d[field] !== '' && d.epoch !=="") {	
+			if (!missingVal(d[field]) && d.epoch !=="") {	
 				aggregate += parseInt(d[field]);
 			}
 
@@ -830,11 +839,11 @@ function createLineChart(config) {
 	    .scale(y)
 	    .orient("left");
 
-	var line = d3.svg.line().defined(function(d) { return d != ''})
+	var line = d3.svg.line().defined(function(d) { return !missingVal(d) })
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return y(d); });
 
-	var lineZoom = d3.svg.line().defined(function(d) { return d != ''})
+	var lineZoom = d3.svg.line().defined(function(d) { return !missingVal(d) })
 	    .x(function(d,i) { return x(i); })
 	    .y(function(d) { return yZoom(d); });
 
@@ -941,7 +950,7 @@ function createLineChart(config) {
 		var xDiscrete = x(xIndex);
 		var yPixels = zoomData[xIndex];
 
-		if (yPixels == "") {
+		if (missingVal(yPixels)) {
 			yPixels = 0;
 		} else {
 			trackedYPos = yPixels;
@@ -1039,7 +1048,7 @@ function createLineChart(config) {
 		    .range([0, config.width]);
 
 		// Create a new line with the new scale
-		var line = d3.svg.line().defined(function(d) { return d != ''})
+		var line = d3.svg.line().defined(function(d) { return !missingVal(d) })
 		    .x(function(d,i) { return x(i); })
 		    .y(function(d) { return yZoom(d); });
 
