@@ -129,10 +129,6 @@ var chartConfigurations = {
 	}
 };
 
-var annotateConfigurations = {
-	'color': "#980002"
-}
-
 function fieldsToDisplay() {
 	// Make list of fields we want to display in the viz
 	var keys = [];
@@ -158,20 +154,44 @@ function missingVal(val) {
 	return (val === "" || val === "None")
 }
 
+function newObj(obj) {
+	return JSON.parse(JSON.stringify(obj));
+}
+
+function changeUser() {
+	var patientName = $("#patientId :selected").text();
+	$("#mainData h1").html(patientName);
+
+	$("#loading").show();
+	$("#gantt").hide();
+	$("#settings").hide();
+
+	removeFieldTags();
+	$(".ganttSide .active").removeClass("active");
+	$("#breakdownHeader h3").html("");
+	$("#changeIntervalSection").hide();
+	userid = $("#patientId").val();
+	loadUser(userid);
+}
+
 var userid;
 var dbNotes;
 var dbActivities;
 
 $(document).ready( function() {
-	// Make sure to change both lines below when switching between users
-	userid = 14;
-	//mainData = loadData(user14);
+	addSettingsHTML();
+	userid = "http://example.org/johndoe"
+	loadUser(userid);
+});
+
+function loadUser(id) {
 
 	// Load stuff from database
-	url = 'getinit/' + String(userid);
+	url = 'getinit';
 	var request = $.ajax({
-		type: "GET",
-		url: url
+		method: "POST",
+		url: url,
+		data: { userid: id }
 	})
 
 	request.done(function(data) {
@@ -202,13 +222,11 @@ $(document).ready( function() {
 	});
 
 	request.fail(function() {
-		alert("Failed to load annotation data");
+		alert("Failed to load user data");
 	});
-
-});
+}
 
 function setSettings(dbSettings) {
-	addSettingsHTML();
 	anomalyFields =  anomalyFieldsToDisplay();
 	for (key in dbSettings) {
 		field = key.split('-')[0];
@@ -277,6 +295,12 @@ function addFieldTags() {
 				.append('div')
 				.attr('id', field)
 				.attr('class', "subsection");
+	});
+}
+
+function removeFieldTags() {
+	$.each(fieldsToDisplay(), function(i, field) {
+		d3.select('#' + field).remove();
 	});
 }
 
@@ -872,7 +896,8 @@ function createLineChart(config) {
 	    .attr("fill", "#FFFFFF")
 	    .on("mouseover", cursorShow)
 	    .on("mouseout", cursorHide)
-	    .on("mousemove", trackCursor);
+	    .on("mousemove", trackCursor)
+	    .on("mousedown", makeNote);
 
 	// Add dot to highlight cursor position
 	var cursorDot = svgZoom.append("circle")
@@ -888,6 +913,9 @@ function createLineChart(config) {
 		.attr("y", 12)
 		.attr("x", 0)
 		.attr("class", "cursorText");
+
+	var markerGroup = svgZoom.append("g")
+		.attr("class", "markers")
 
 	// This is the shorter SVG where you can manipulate zoom
 	var svg = dayContainer.append("svg")
@@ -967,6 +995,37 @@ function createLineChart(config) {
 		
 	};
 
+	function readNote(d) {
+		dayEpoch = (d - config.epoch) / 60 // Total minutes into day
+		xPixels = x(dayEpoch)
+	 	var epoch = getEpochFromPixels(xPixels);
+	 	openAnomalyDialog(this, xPixels, epoch);
+	}
+
+	function makeNote() {
+		var xPixels = d3.mouse(this)[0];
+		var epoch = getEpochFromPixels(xPixels);
+		openAnomalyDialog(this, xPixels, epoch);
+	}
+
+	function getEpochFromPixels(xPixels) {
+		var xIndex = Math.floor(x.invert(xPixels));
+		return config.epoch + (xStart + xIndex) * 60
+	}
+
+	function addNotesToChart(notes) {
+		// Add notes to chart
+		listEpochs = [];
+		for (var i=0; i < notes.length; i++) {
+			var noteEpoch = notes[i].key.epoch
+			var dayEpoch = noteEpoch - config.epoch;
+			if (dayEpoch > 0) {
+				listEpochs.push(noteEpoch);
+				addNoteMarker(listEpochs, config.epoch);
+			}
+		}
+	}
+
 	function cursorShow() {
 		cursorDisplay(true);
 	}
@@ -1024,20 +1083,22 @@ function createLineChart(config) {
 				anomaliesLow = AnomaliesSubset(xStart,xEnd,config.anomalies.low);
 				anomaliesHigh = AnomaliesSubset(xStart,xEnd,config.anomalies.high);
 				
-	    		RefreshZoomChart(zoomData, config, anomaliesLow, anomaliesHigh);
+				notes = notesSubset(xStart, xEnd, config);
+
+	    		RefreshZoomChart(zoomData, config, anomaliesLow, anomaliesHigh, notes);
     		} else {
     			// Clear rectangle and reset zoom
     			xStart = 0;
     			xEnd = config.data.length;
   				rectZoom.attr("transform", "translate(0,0)")
   				rectZoom.attr("width", width + margin.left + margin.right)
-    			RefreshZoomChart(config.data, config, config.anomalies.low, config.anomalies.high)
+    			RefreshZoomChart(config.data, config, config.anomalies.low, config.anomalies.high, dbNotes);
     		}
   		}
 
 	});
 
-	function RefreshZoomChart(data, config, anomaliesLow, anomaliesHigh) {
+	function RefreshZoomChart(data, config, anomaliesLow, anomaliesHigh, notes) {
 
 		// Set new zoom data
 		zoomData = data;
@@ -1066,6 +1127,7 @@ function createLineChart(config) {
 
 		// Remove all rectangles (to clear anomalies)
 		svgZoom.selectAll("rect").remove();
+		svgZoom.selectAll(".point").remove();
 
 		// Re-insert cursor-tracking rectangle to top of child list
 		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
@@ -1075,6 +1137,8 @@ function createLineChart(config) {
 			AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", yZoom);
 			AddAnomaliesToChart(svgZoom, anomaliesLow, "l", yZoom);
 		}
+		// Add markers
+		addNotesToChart(notes);
 	}
 
 	function AddAnomaliesToChart(targetSvg, anomalies, type, y) {
@@ -1103,19 +1167,32 @@ function createLineChart(config) {
 						}
 					})
 					.attr("fill", function() {
-						if (isAnnotated(d[0])) {
-							return annotateConfigurations.color
-						} else {
-							return "#555555"
-						}
+						return "#555555"
 					})
-					.attr("class", "heartAnomaly")
-					.on("mousedown", function() {
-						openAnomalyDialog(d, this);
-	 				});
+					.attr("class", "anomaly");
 			}
 		});
 	}
+
+	addNotesToChart(dbNotes);
+
+	function addNoteMarker(listEpochs, configEpoch) {
+		markerGroup
+			.selectAll("path")
+			.data(listEpochs)
+			.enter().append("path")
+	      	.attr("class", "point")
+	      	.attr("stroke", "#FF8247")
+	      	.attr("fill", "#FF8247")
+	      	.attr("d", d3.svg.symbol().type("triangle-down"))
+	      	.attr("transform", function(d) { 
+	      		var xPos = (d - configEpoch) / 60; // convert epoch to minutes
+				var xPixels = x(xPos);
+	      		return "translate(" + xPixels + ",4)"; 
+	      	})
+	      	.on("mousedown", readNote);
+	}
+
 }
 
 function cursorTrackText(timeIndex, val) {
@@ -1147,10 +1224,10 @@ function isAnnotated(d) {
 	return (getAnnotation(d) != '');
 }
 
-function getAnnotation(d) {
+function getAnnotation(epoch) {
 	if (dbNotes.length > 0) {
 		for (i = 0; i < dbNotes.length; i++) {
-			if (dbNotes[i].key.epoch == d.epoch) {
+			if (dbNotes[i].key.epoch == epoch) {
 				return dbNotes[i].value
 			}
 		}
@@ -1160,11 +1237,10 @@ function getAnnotation(d) {
 	}
 }
 
-function openAnomalyDialog(d, rect) {
-	rectangle = d3.select(rect);
+function openAnomalyDialog(source, xPixels, epoch) {
 
-	// If anomaly has already been annotated, show it
-	$( "#notes" ).val(getAnnotation(d[0]));
+	// If anomaly has already been annotated, show it in dialog
+	$( "#notes" ).val(getAnnotation(epoch));
 	
 	var dialog, form,
 	notes = $( "#notes" ),
@@ -1214,7 +1290,7 @@ function openAnomalyDialog(d, rect) {
 			var values = {
     			'key': {
     				'userid': userid,
-					'epoch': d[0]['epoch']
+					'epoch': epoch
 				},
     			'value': notes.val()
     		};
@@ -1228,7 +1304,19 @@ function openAnomalyDialog(d, rect) {
 			})
 
 			request.done(function(notes) {
-				rectangle.attr("fill", annotateConfigurations.color);
+				switch(source.tagName.toLowerCase()) {
+					case "rect":
+						d3.select(source.parentNode).append("path")
+							.attr("class", "point")
+		      				.attr("stroke", "#FF8247")
+		      				.attr("fill", "#FF8247")
+		      				.attr("d", d3.svg.symbol().type("triangle-down"))
+		      				.attr("transform", function(d) { return "translate(" + xPixels + ",4)"; });						
+					case "path":
+						// Do nothing.
+				}
+				//d3.select(source);
+				//rectangle.attr("fill", annotateConfigurations.color);
 				dbNotes = JSON.parse(notes)
 			});
 
@@ -1267,37 +1355,52 @@ function openAnomalyDialog(d, rect) {
 }
 
 function AnomaliesSubset(minIndex,maxIndex,anomalies) {
-	var anomaliesSubset = [];
+	var list = [];
 	var newAnomaly;
 	$.each(anomalies, function(i,d) {
 		if (d.length>1) {
 			if (d[0].id >= minIndex && d[0].id <= maxIndex) {
-				newAnomaly = JSON.parse(JSON.stringify(d));
+				newAnomaly = newObj(d);
 				if (d[1].id > maxIndex) {
 					newAnomaly[0].id -= minIndex 
 					newAnomaly[1].id = maxIndex - minIndex;
-					anomaliesSubset.push(newAnomaly);
+					list.push(newAnomaly);
 				} else {
 					newAnomaly[0].id -= minIndex;
 					newAnomaly[1].id -= minIndex;
-					anomaliesSubset.push(newAnomaly);
+					list.push(newAnomaly);
 				}
 			} else if (d[1].id >= minIndex && d[1].id <= maxIndex) {
-				newAnomaly = JSON.parse(JSON.stringify(d));
+				newAnomaly = newObj(d);
 				newAnomaly[0].id = 0;
 				newAnomaly[1].id -= minIndex;
-				anomaliesSubset.push(newAnomaly);
+				list.push(newAnomaly);
 			} else if (d[0].id <= minIndex && d[1].id >= maxIndex) {
-				newAnomaly = JSON.parse(JSON.stringify(d));
+				newAnomaly = newObj(d);
 				newAnomaly[0].id = 0;
 				newAnomaly[1].id = maxIndex - minIndex;
-				anomaliesSubset.push(newAnomaly);
+				list.push(newAnomaly);
 			} else {
 
 			}
 		}
 	});
-	return anomaliesSubset	
+	return list
+}
+
+function notesSubset(minIndex, maxIndex, config) {
+	var list = [];
+	var newNote;
+	$.each(dbNotes, function(i,d) {
+		var dayEpoch = d.key.epoch - config.epoch;
+		noteIndex = dayEpoch / 60;
+		if (noteIndex >= minIndex && noteIndex <= maxIndex) {
+			newNote = newObj(d);
+			newNote.key.epoch -= minIndex * 60;
+			list.push(newNote);
+		}
+	});
+	return list;
 }
 
 /*

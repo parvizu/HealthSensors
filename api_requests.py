@@ -8,13 +8,13 @@ class APIRequests:
 	def __init__(self, pURL):
 		self.postURL = pURL
 
-	def test_patient_data(self):
+	def patient_data(self, patient_id):
 		headers = self.get_post_headers()
-		params = json.dumps(self.test_patient_json())
+		params = json.dumps(self.patient_json(patient_id))
 		return self.post(self.postURL, params, headers)
 
-	def get_test_patient_json(self):
-		return APIRequests.byteify(self.test_patient_data().json())
+	def get_patient(self, patient_id):
+		return APIRequests.byteify(self.patient_data(patient_id).json())
 
 	@staticmethod
 	def get_post_headers():
@@ -35,8 +35,8 @@ class APIRequests:
 		return None
 
 	@staticmethod
-	def test_patient_json():
-		return {"actor.id":{"$in":["http://example.org/TestPatient"]},"verb":{"$in":["add"]},"object.objectType":{"$in":["exerciseRecord"]}}
+	def patient_json(patient_id):
+		return {"actor.id":{"$in":[patient_id]},"verb":{"$in":["add"]},"object.objectType":{"$in":["exerciseRecord"]}}
 
 	@staticmethod
 	def byteify(input):

@@ -306,22 +306,10 @@ label, input { display:block; }
 	width:800px;
 }
 
-/*** Heart Rate charts ***/
-#heartRate {
-	display: none;
-}
-
 .subsection .scale {
 	/*background-color: white;*/
 	width: 100%;
 }
-
-/*.heartrate {
-	background-color: ghostwhite;
-	margin: 2px;
-	border-radius: 3px;	
-	
-}*/
 
 .subsection div {
 	display: inline-block;
@@ -354,7 +342,7 @@ label, input { display:block; }
 	border-radius: 2px;
 }*/
 
-.heartAnomaly {
+.anomaly {
 	opacity: 0.15;
 }
 

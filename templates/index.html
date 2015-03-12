@@ -14,7 +14,15 @@
 <body>
 	<div id="container">
 		<div id="mainData" class="section">
-			<h1>Mr. John Doe</h1>
+ 			<div style="float: right">
+				<form>
+					<select id="patientId" onchange="changeUser()">
+						<option value="http://example.org/johndoe">John Doe</option>
+						<option value="http://example.org/janesmith">Jane Doe</option>
+					</select>
+				</form>
+			</div>
+			<h1>John Doe</h1>
 			<table>
 				<thead>
 					<tr>
