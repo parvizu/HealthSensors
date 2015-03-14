@@ -158,6 +158,11 @@ function newObj(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
 
+function dateToEpoch(time) {
+	var myDate = new Date(time);
+	return myDate.getTime()/1000.0;
+}
+
 function changeUser() {
 	var patientName = $("#patientId :selected").text();
 	$("#mainData h1").html(patientName);
@@ -307,10 +312,7 @@ function removeFieldTags() {
 function loadData(file) {
 	var dataDict = [];
 	$.each(file, function(i,obj) {
-
-		datetime = new Date(obj['time'].trim());
-		epoch = datetime.getTime() / 1000.0;
-
+		epoch = dateToEpoch(obj['time'].trim());
 		datum = {};
 		for (var property in fields) {
     		if (obj.hasOwnProperty(property)) {
@@ -632,6 +634,10 @@ function getAggregateMeasurement(data,interval,field) {
 */
 function createConfigFile(data,target,id,field) {
 	var configData = setConfigData(data, field);
+	//var startTime = getEarliestTime(data);
+	var startTime = data[0];
+	console.log(data);
+
 	return {
 		target: target,
 		id: id,
@@ -642,9 +648,9 @@ function createConfigFile(data,target,id,field) {
 			'bottom': chartConfigurations.dayView.charts.margin.bottom,
 			'left': chartConfigurations.dayView.charts.margin.left
 		},
-		day: getDateDay(data[0]),
-		date: new Date(data[0].time),
-		epoch: data[0].epoch,
+		day: getDateDay(startTime),
+		date: new Date(startTime.time),
+		epoch: startTime.epoch,
 		width: chartConfigurations.dayView.charts.width,
 		height: chartConfigurations.dayView.charts.height,
 		data: configData.simple,
@@ -1026,6 +1032,30 @@ function createLineChart(config) {
 		}
 	}
 
+	function addActivitiesToChart(activities) {
+		//targetSvg, anomalies, type, y
+		$.each(activities, function(i,d) {
+			startEpoch = dateToEpoch(d.startTime);
+			endEpoch = dateToEpoch(d.endTime);
+			var dayMinutes = (startEpoch - config.epoch)/60;
+			if (dayMinutes > xStart && dayMinutes < xEnd) {
+				//svgZoom.insert("rect", ":first-child")
+				// SHOWS UP ON THE 16th, but it's the 17th
+				svgZoom.append("rect")
+					.attr("x", x(dayMinutes))
+					.attr("y", 0)
+					.attr("width", function() {
+						minutesBetween = (endEpoch - startEpoch)/60;
+						return x(minutesBetween);
+					})
+					.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
+					.attr("fill", "#551A8B")
+					.attr("opacity", 0.3)
+					.attr("class", "activity");
+			}
+		});
+	}
+
 	function cursorShow() {
 		cursorDisplay(true);
 	}
@@ -1175,6 +1205,7 @@ function createLineChart(config) {
 	}
 
 	addNotesToChart(dbNotes);
+	addActivitiesToChart(dbActivities);
 
 	function addNoteMarker(listEpochs, configEpoch) {
 		markerGroup
@@ -1415,7 +1446,8 @@ function getWeekData(start) {
 		userConfiguration.week.start = start;
 		var end = start + 86400;
 		for (var i = 0; i<7; i++) {
-			week.push(getDayData(start,end));
+			var dayData = getDayData(start,end);
+			week.push(dayData);
 			start = end;
 			end = end +86400;
 		}
@@ -1444,14 +1476,20 @@ function getDayData(start,end) {
 	var day = [];
 	$.each(mainData, function(i,d) {
 		if (parseInt(d.epoch) >= start && parseInt(d.epoch) < end) {
-			minday = (new Date(d.time).getUTCHours() *60) + ((d.epoch % 3600)/60)
+			//minday = (new Date(d.time).getUTCHours() *60) + ((d.epoch % 3600)/60)
+			minday = (d.epoch - start) / 60
 			clean[minday] = d;
 		}
 	});
 
-	$.map(clean, function(obj,k) {
-		day.push(obj);
-	})
+	for (var i = 0; i<=1439; i++) {
+		day.push(clean[i]);
+	}
+
+	// code below should work too
+	// $.map(clean, function(obj,k) {
+	// 	day.push(obj);
+	// })
 	return day;
 }
 
