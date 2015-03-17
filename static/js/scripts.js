@@ -106,25 +106,26 @@ var mainParameters = {
 var chartConfigurations = {
 	'dayView': {
 		'timeScale': {
-			'width': 800,
+			'width': 945,
 			'height': 65,
 			'margin': {
-				'left': 30,
+				'left': 35,
 				'top': 0,
-				'right': 15,
+				'right': 45,
 				'bottom': 0
 			}
 		},
 		'charts': {
-			'width': 800,
+			'width': 945,
 			'height': 25,
-			'zoomHeight': 65,
+			'zoomHeight': 75,
 			'margin': {
-				'left': 30,
-				'top': 0,
-				'right': 0,
+				'left': 35,
+				'top': 10,
+				'right': 30,
 				'bottom': 5
-			}
+			},
+			'anomalyColor': '#FF0000'
 		}
 	}
 };
@@ -163,18 +164,33 @@ function dateToEpoch(time) {
 	return myDate.getTime()/1000.0;
 }
 
-function changeUser() {
-	var patientName = $("#patientId :selected").text();
-	$("#mainData h1").html(patientName);
-
+function showLoadingView() {
 	$("#loading").show();
 	$("#gantt").hide();
 	$("#settings").hide();
+}
 
+function hideLoadingView() {
+	$("#loading").fadeOut("fast", function() {
+		$("#gantt").fadeIn();
+		$("#settings").fadeIn();
+	});
+}
+
+function rewindFieldView() {
 	removeFieldTags();
 	$(".ganttSide .active").removeClass("active");
 	$("#breakdownHeader h3").html("");
 	$("#changeIntervalSection").hide();
+}
+
+function changeUser() {
+	var patientName = $("#patientId :selected").text();
+	$("#mainData h1").html(patientName);
+	
+	showLoadingView();
+	rewindFieldView();
+
 	userid = $("#patientId").val();
 	loadUser(userid);
 }
@@ -184,7 +200,6 @@ var dbNotes;
 var dbActivities;
 
 $(document).ready( function() {
-	addSettingsHTML();
 	userid = "http://example.org/johndoe"
 	loadUser(userid);
 });
@@ -206,7 +221,6 @@ function loadUser(id) {
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
 		dbActivities = initValues['activities'];
-		console.log(dbActivities);
 
 		// Assign database settings to app variables
 		setSettings(dbSettings);
@@ -216,12 +230,12 @@ function loadUser(id) {
 		initialize(mainData[0].epoch);
 
 		// TEMPORARY Uses the change button to update the interval.
-		$("#changeInterval").on("click", function() {
-			var interval = $("#interval").val();	
+		$("#interval").change(function() {
+			var interval = $("#interval").val();
 			if ($.isNumeric(interval) &&interval >0 && interval <=60 && interval !== '') {
 				changeInterval(interval);
 			}
-			$("#interval").text("");
+			//$("#interval").text("");
 		})
 	
 	});
@@ -232,57 +246,21 @@ function loadUser(id) {
 }
 
 function setSettings(dbSettings) {
+
 	anomalyFields =  anomalyFieldsToDisplay();
-	for (key in dbSettings) {
-		field = key.split('-')[0];
-		property = key.split('-')[1];
-		if (anomalyFields.indexOf(field) > -1) {
-			// Set settings in app memory
-			if (property == "high") {
-				fields[field].anomalies.h = parseFloat(dbSettings[key]);
+
+	$.each(dbSettings, function(index, setting) {
+		field = setting.key.field;
+		for (propertyKey in setting.value) {
+			propertyValue = setting.value[propertyKey];
+			if (propertyKey == "high") {
+				fields[field].anomalies.h = parseFloat(propertyValue);
 			} else {
-				fields[field].anomalies.l = parseFloat(dbSettings[key]);
+				fields[field].anomalies.l = parseFloat(propertyValue);
 			}
-			$("#" + key).val(dbSettings[key]);
 		}
-	}
-}
-
-function addSettingsHTML() {
-	$.each(anomalyFieldsToDisplay(), function(i, field) {
-		anomaliesConfigTable = "#settings tbody"
-		settingsForm = d3.select(anomaliesConfigTable).append("tr");
-
-		settingsForm
-			.append("td")
-			.text(fields[field].description);
-
-		settingsForm
-			.append("td")
-			.append("input")
-			.attr("type", "text")
-			.attr("style","width: 40px")
-			.attr("name", field + "-low")
-			.attr("id", field + "-low");
-
-		settingsForm
-			.append("td")
-			.append("input")
-			.attr("type", "text")
-			.attr("style","width: 40px")
-			.attr("name", field + "-high")
-			.attr("id", field + "-high");
-	
 	});
-	settingsForm = d3.select(anomaliesConfigTable).append("tr");
 
-	settingsForm
-		.append("td")
-		.attr("colspan", 3)
-		.append("input")
-		.attr("type", "submit")
-		.attr("name", "save-threshold")
-		.attr("value", "Save Changes");
 }
 
 function initialize(start) {
@@ -442,7 +420,7 @@ function buildGantt() {
 			alert("Error: Gantt block interval too small.");
 		}
 		if (values.length > 0) {
-			gs = d3.select('div.ganttSide')
+			gs = d3.select('div.ganttSide');
 			if (gs.select('.' + field).empty()) {
 				// Add measurement headers
 				gs.append('div')
@@ -459,7 +437,20 @@ function buildGantt() {
 							showFieldWeek(mname);
 						}, 1 );
 					});
-				}
+			}
+
+			gs = d3.select('div#rightSideGantt');
+			var fieldTag = field + '-settings';
+			if (gs.select('.' + fieldTag).empty()) {
+				gs = gs.append('div')
+					.attr('class', 'measurement-container');
+
+				var link = gs.append('a')
+					.attr('href', '#')
+					.attr('class', 'editSettings')
+					.attr('onclick', 'openSettingsDialog(\"' + field + '\");')
+					.html('<span class="' + fieldTag + ' measurement field-settings"></span>Edit Settings');
+			}
 				
 			// Creating and appending the rectangles that will represent the x-hour blocks of time.
 			svg.append('g')
@@ -501,14 +492,7 @@ function buildGantt() {
 		addMeasurementBlocks(key, i*33);
 	});
 
-	showGantt();
-}
-
-function showGantt() {
-	$("#loading").fadeOut("fast", function() {
-		$("#gantt").fadeIn();
-		$("#settings").fadeIn();
-	});
+	hideLoadingView();
 }
 
 function getNonNullMeasurement(data, interval, field) {
@@ -634,9 +618,7 @@ function getAggregateMeasurement(data,interval,field) {
 */
 function createConfigFile(data,target,id,field) {
 	var configData = setConfigData(data, field);
-	//var startTime = getEarliestTime(data);
 	var startTime = data[0];
-	console.log(data);
 
 	return {
 		target: target,
@@ -867,7 +849,13 @@ function createLineChart(config) {
 
 	var yAxis = d3.svg.axis()
 	    .scale(y)
-	    .orient("left");
+	    .orient("right");
+
+	var yAxisZoom = d3.svg.axis()
+		.scale(yZoom)
+		.ticks(3)
+		.tickSize(8, 1)
+		.orient("right")
 
 	var line = d3.svg.line().defined(function(d) { return !missingVal(d) })
 	    .x(function(d,i) { return x(i); })
@@ -897,7 +885,7 @@ function createLineChart(config) {
 	// Add rectangle to track cursor
 	svgZoom.append("rect")
 		.attr("class", "rectTrackCursor")
-		.attr("width", width + margin.right)
+		.attr("width", width)
 	    .attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
 	    .attr("fill", "#FFFFFF")
 	    .on("mouseover", cursorShow)
@@ -926,11 +914,20 @@ function createLineChart(config) {
 	// This is the shorter SVG where you can manipulate zoom
 	var svg = dayContainer.append("svg")
 		.attr("width", width + margin.left + margin.right)
-	    .attr("height", height + margin.top + margin.bottom)
+	    .attr("height", height + margin.bottom)
 	    .attr("class", "lineChart")
 	    .attr("style", "cursor: crosshair")
-	  	.append("g")
-	    	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+	svg.append("image")
+		.attr("xlink:href", "/static/css/images/search-icon.png")
+		.attr("x", 1)
+		.attr("y", 10)
+		.attr("height", "12px")
+		.attr("width", "12px")
+		.attr("opacity", 0.7);
+
+	svg = svg.append("g")
+	    	.attr("transform", "translate(" + margin.left + ",0)");
 
 	// Make background rectangle to handle mouse events
 	svg.append("rect")
@@ -976,6 +973,12 @@ function createLineChart(config) {
 		AddAnomaliesToChart(svgZoom, config.anomalies.high, "h", yZoom);
 		AddAnomaliesToChart(svgZoom, config.anomalies.low, "l", yZoom);
 	}
+
+    svgZoom.append("g")
+    	.attr("class", "axisBar")
+    	.attr("transform","translate(" + config.width + ",0)")
+    	.call(yAxisZoom);
+
 
 	// Handle cursor tracking on taller SVG
 	function trackCursor() {
@@ -1041,7 +1044,10 @@ function createLineChart(config) {
 			if (dayMinutes > xStart && dayMinutes < xEnd) {
 				//svgZoom.insert("rect", ":first-child")
 				// SHOWS UP ON THE 16th, but it's the 17th
-				svgZoom.append("rect")
+				var g = svgZoom.append("g")
+					.attr("class", "activity")
+
+				g.append("rect")
 					.attr("x", x(dayMinutes))
 					.attr("y", 0)
 					.attr("width", function() {
@@ -1051,7 +1057,16 @@ function createLineChart(config) {
 					.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
 					.attr("fill", "#551A8B")
 					.attr("opacity", 0.3)
-					.attr("class", "activity");
+					.attr("class", "activity")
+					.append("svg:title")
+   					.text(d.subVerb);
+
+   				g.append("image")
+   					.attr("xlink:href", "/static/css/images/bicycle-icon.png")
+   					.attr("x", x(dayMinutes) + 5)
+   					.attr("y", 7)
+   					.attr("width", "14")
+   					.attr("height", "10");
 			}
 		});
 	}
@@ -1197,7 +1212,7 @@ function createLineChart(config) {
 						}
 					})
 					.attr("fill", function() {
-						return "#555555"
+						return chartConfigurations.dayView.charts.anomalyColor;
 					})
 					.attr("class", "anomaly");
 			}
@@ -1246,7 +1261,7 @@ function AddAnomalyLine(config,svg,value,line, y) {
 	// Add label
 	svg.append("text")
 		.attr("y", y(value) + 2)
-		.attr("x", 15 - chartConfigurations.dayView.charts.margin.left)
+		.attr("x", -17)
 		.attr("class", "dayViewLabel")
 		.text(value);
 }
@@ -1268,6 +1283,121 @@ function getAnnotation(epoch) {
 	}
 }
 
+function updateTips( t, tips ) {
+	tips
+	.text( t )
+	.addClass( "ui-state-highlight" );
+	setTimeout(function() {
+		tips.removeClass( "ui-state-highlight", 1500 );
+	}, 500 );
+}
+
+function checkLength( o, n, min, max ) {
+	if ( o.val().length > max || o.val().length < min ) {
+		o.addClass( "ui-state-error" );
+		updateTips( "Length of " + n + " must be between " +
+			min + " and " + max + ".", tips );
+		return false;
+	} else {
+		return true;
+	}
+}
+
+function checkRegexp( o, regexp, n ) {
+	if ( !( regexp.test( o.val() ) ) ) {
+		o.addClass( "ui-state-error" );
+		updateTips( n, tips );
+		return false;
+	} else {
+		return true;
+	}
+}
+
+function openSettingsDialog(field) {
+
+	var description = fields[field].description.toLowerCase();
+	var dialogTitle = "Edit " + String(description) + " settings";
+	var dialog, form;
+	var low = $( "#low" );
+	var high = $( "#high" );
+	allFields = $( [] ).add( low ).add( high ),
+	tips = $( ".validateTips" );
+
+	low.val(fields[field].anomalies.l);
+	high.val(fields[field].anomalies.h);
+
+	function postSettings() {
+		var valid = true;
+		allFields.removeClass( "ui-state-error" );
+		// validate low and high fields (alpha numeric, present, etc.)
+		//valid = valid && checkLength( notes, "notes", 1, 500 );
+
+		if ( valid ) {
+
+			var values = {
+    			'key': {
+    				'userid': userid,
+    				'field': field
+				},
+    			'value': {
+    				'low': low.val(),
+    				'high': high.val()
+    			}
+    		};
+
+			var request = $.ajax({
+				type: "POST",
+				url: '/addsetting',
+				contentType: "application/json",
+				data: JSON.stringify(values),
+				datatype: String
+			})
+
+			request.done(function(data) {
+
+				showLoadingView();
+				rewindFieldView();
+				event.preventDefault();
+
+				loadUser(userid);
+			});
+
+			request.fail(function() {
+				alert("Failed to save settings");
+			});
+
+			dialog.dialog( "close" );
+		}
+
+		return valid;
+	}
+	
+	dialog = $( "#dialog-settings" ).dialog({
+		title: dialogTitle,
+		autoOpen: true,
+		height: 250,
+		width: 300,
+		modal: true,
+		buttons: {
+			"Save": postSettings,
+			Cancel: function() {
+				dialog.dialog( "close" );
+			}
+		},
+		close: function() {
+			form[ 0 ].reset();
+			allFields.removeClass( "ui-state-error" );
+			tips.text("");
+		}
+	});
+
+	form = dialog.find( "form" ).on( "submit", function( event ) {
+		event.preventDefault();
+		postSettings();
+	});
+
+}
+
 function openAnomalyDialog(source, xPixels, epoch) {
 
 	// If anomaly has already been annotated, show it in dialog
@@ -1277,36 +1407,6 @@ function openAnomalyDialog(source, xPixels, epoch) {
 	notes = $( "#notes" ),
 	allFields = $( [] ).add( notes ),
 	tips = $( ".validateTips" );
-	
-	function updateTips( t ) {
-		tips
-		.text( t )
-		.addClass( "ui-state-highlight" );
-		setTimeout(function() {
-			tips.removeClass( "ui-state-highlight", 1500 );
-		}, 500 );
-	}
-
-	function checkLength( o, n, min, max ) {
-		if ( o.val().length > max || o.val().length < min ) {
-			o.addClass( "ui-state-error" );
-			updateTips( "Length of " + n + " must be between " +
-				min + " and " + max + "." );
-			return false;
-		} else {
-			return true;
-		}
-	}
-
-    function checkRegexp( o, regexp, n ) {
-		if ( !( regexp.test( o.val() ) ) ) {
-			o.addClass( "ui-state-error" );
-			updateTips( n );
-			return false;
-		} else {
-			return true;
-		}
-	}
 
 	function addNote() {
 		var valid = true;
@@ -1360,7 +1460,7 @@ function openAnomalyDialog(source, xPixels, epoch) {
 		return valid;
 	}
 
-	dialog = $( "#dialog" ).dialog({
+	dialog = $( "#dialog-notes" ).dialog({
 		autoOpen: true,
 		height: 300,
 		width: 350,
@@ -1513,7 +1613,7 @@ function createDayCharts(start, startEpoch) {
 		} else if (fields[field].chartType == chartTypes.bar) {
 			createBarChart(config);
 		}		
-		$("#" + config.id + " h3").html(fields[field].description);
+		$("#" + config.id + " h3").html(field);
 		$("#" + config.id + " h3").addClass("dailyHeader");
 	});
 

@@ -1,12 +1,22 @@
 body {
 	/*background-color: black;*/
 	font-size: 12px;
+	margin: 0px !important;
 }
 
 #container {
-	width: 1000px;
-    margin: 0 auto;
+	width: 1200px;
     font-family: verdana;
+}
+
+#container-top {
+	margin-left: 120px;
+	margin-right: 120px;
+}
+
+#container-bottom {
+	margin-left: 50px;
+	margin-right: 65px;
 }
 
 #mainData {
@@ -152,16 +162,21 @@ table td
 }
 
 .ganttSide {
-	/*margin-top: 35px;*/
+	width: 100px;
 }
 
-.ganttSide .measurement {
-	padding-top: 5px;
-	padding-bottom: 5px;
-	padding-right: 5px;
+.measurement {
+	padding: 5px;
 	margin-right:5px;
 	margin-bottom: 2px;
 	margin-top: 8px;
+}
+
+#rightSideGantt .dayMenu {
+	text-align: left !important;
+}
+
+.ganttSide .measurement {
 	border-radius: 5px;
 }
 .ganttSide .measurement:hover {
@@ -206,7 +221,7 @@ label, input { display:block; }
 .validateTips { border: 1px solid transparent; padding: 0.3em; display: none;}
 .ui-state-highlight { display: block; }
 
-#dialog {
+#dialog-notes, #dialog-settings {
 	display: none;
 }
 
@@ -223,6 +238,26 @@ label, input { display:block; }
 	margin-bottom: 0px;
 	margin-top: 4px;
 }
+
+.measurement-container {
+	margin-top: 7px;
+}
+
+.editSettings {
+	color: gray !important;
+	padding: 5px;
+	padding-left: 10px;
+	background-color: whitesmoke;
+	background-image: url('/static/css/images/settings-icon.png');
+	background-repeat: no-repeat;
+	background-position: 4px center;
+	border: thin solid lightgray;
+	border-radius: 3px;
+	text-decoration: none !important;
+	display: block;
+}
+
+
 
 .dayMenu a {
 	text-decoration: none;
@@ -243,6 +278,7 @@ label, input { display:block; }
 #breakdownHeader h3 {
 	margin-top:30px;
 	margin-bottom: 20px;
+	margin-left: 70px;
 }
 
 #changeIntervalSection {
@@ -274,7 +310,7 @@ label, input { display:block; }
 }
 
 .timeScale {
-	margin-left: 40px;
+	margin-left: 70px;
 	/*width: 100%;*/
 }
 
@@ -290,7 +326,7 @@ label, input { display:block; }
 .subsection {
 	/*background-color: blue;*/
 	width: 900px;
-	margin:3px;
+	/*margin:3px;*/
 }
 
 .subsection .dayChart {
@@ -299,7 +335,7 @@ label, input { display:block; }
 	/*margin-top: 0px;*/
 	border-radius: 2px;	
 	width: 900px;
-	height: 120px;
+	height: 130px;
 }
 
 .chartDayArea {
@@ -317,7 +353,7 @@ label, input { display:block; }
 }
 
 .chartDayHeader {
-	min-width: 40px;
+	min-width: 70px;
 	text-align: left;
 }
 

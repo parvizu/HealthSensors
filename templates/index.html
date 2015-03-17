@@ -13,128 +13,132 @@
 </head>
 <body>
 	<div id="container">
-		<div id="mainData" class="section">
- 			<div style="float: right">
-				<form>
-					<select id="patientId" onchange="changeUser()">
-						<option value="http://example.org/johndoe">John Doe</option>
-						<option value="http://example.org/janesmith">Jane Doe</option>
-					</select>
-				</form>
-			</div>
-			<h1>John Doe</h1>
-			<table>
-				<thead>
-					<tr>
-						<td><strong>Date</td>
-						<td><strong>Heart Rate</td>
-						<td><strong>Blood Pressure</td>
-						<td><strong>Temperature</td>
-						<td><strong>Glucose Levels</td>
-						<td><strong>Weight</td>
-						<td><strong>Age</td>
-						<td><strong>Height</td>
-					</tr>
-				</thead>
-				<tbody id="mainTableBody">
-					<tr>
-						<td>01/12/2015</td>
-						<td>80 bpm</td>
-						<td>120/80</td>
-						<td>98.6</td>
-						<td>120</td>
-						<td>180</td>
-						<td>32</td>
-						<td>5'11"</td>
-					</tr>
-					<tr>
-						<td>09/24/2014</td>
-						<td>53 bpm</td>
-						<td>112/65</td>
-						<td>98.6</td>
-						<td>117</td>
-						<td>182</td>
-						<td>33</td>
-						<td>5'11"</td>
-					</tr>
-					<tr>
-						<td>04/02/2014</td>
-						<td>59 bpm</td>
-						<td>119/70</td>
-						<td>100</td>
-						<td>119</td>
-						<td>175</td>
-						<td>32</td>
-						<td>5'11"</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
-
-		<div id="loading">
-			<div class="spinner"></div>
-		</div>
-
-		<div id="gantt" class="section">
-			<h2></h2>
-			<div class="ganttSide">
-				<div class="dayMenu"><a href="" onclick="advanceTime(-6);return false;"><<</a>  <a href="" onclick="advanceTime(-1);return false;"><</a></div>
-			</div>
-			<div class="chartContent"></div>
-			<div id="rightSideGantt">
-				<div class="dayMenu"><a href="" onclick="advanceTime(1);return false;">></a>  <a href="" onclick="advanceTime(6);return false;">>></a></div>
-			</div>
-		</div>
-
-		<div id="settings">
-			<form id="anomaly-settings" action="/addsetting" method="post">
+		<div id="container-top">
+			<div id="mainData" class="section">
+	 			<div style="float: right">
+					<form>
+						<select id="patientId" onchange="changeUser()">
+							<option value="http://example.org/johndoe">John Doe</option>
+							<option value="http://example.org/janesmith">Jane Doe</option>
+						</select>
+					</form>
+				</div>
+				<h1>John Doe</h1>
 				<table>
 					<thead>
 						<tr>
-							<td><strong>Anomalies</td>
-							<td><strong>Low</td>
-							<td><strong>High</td>
+							<td><strong>Date</td>
+							<td><strong>Heart Rate</td>
+							<td><strong>Blood Pressure</td>
+							<td><strong>Temperature</td>
+							<td><strong>Glucose Levels</td>
+							<td><strong>Weight</td>
+							<td><strong>Age</td>
+							<td><strong>Height</td>
 						</tr>
 					</thead>
-					<tbody>
-						<!-- <tr>
-							<td>Heart Rate</td>
-							<td><input type="text" style="width:40px" name="HR-low" id="HR-low"></td>
-							<td><input type="text" style="width:40px" name="HR-high" id="HR-high"></td> 
+					<tbody id="mainTableBody">
+						<tr>
+							<td>01/12/2015</td>
+							<td>80 bpm</td>
+							<td>120/80</td>
+							<td>98.6</td>
+							<td>120</td>
+							<td>180</td>
+							<td>32</td>
+							<td>5'11"</td>
 						</tr>
 						<tr>
-							<td colspan="3">
-								<input type="submit" name="save-threshold" value="Save Changes">
-							</td>
-						</tr>-->
+							<td>09/24/2014</td>
+							<td>53 bpm</td>
+							<td>112/65</td>
+							<td>98.6</td>
+							<td>117</td>
+							<td>182</td>
+							<td>33</td>
+							<td>5'11"</td>
+						</tr>
+						<tr>
+							<td>04/02/2014</td>
+							<td>59 bpm</td>
+							<td>119/70</td>
+							<td>100</td>
+							<td>119</td>
+							<td>175</td>
+							<td>32</td>
+							<td>5'11"</td>
+						</tr>
 					</tbody>
 				</table>
-			</form>
-		</div>
-	
-		<div id="breakdown" class="section">
-			<div id="breakdownHeader"><h3></h3></div>
-			<div id="fields">
 			</div>
-			<div id="dayView" class="subsection"></div>
-			<div id="changeIntervalSection">
-				Change Interval <input type="text" id="interval">
-				<input type="button" id="changeInterval" value="Change">
-			</div>
-		</div>
-		
-		<div id="dialog" title="Annotate anomaly">
-			<p class="validateTips"></p>
-  			<form>
-    			<fieldset>
-      				<label for="notes">Notes</label>
-      				<textarea name="notes" id="notes" class="text ui-widget-content ui-corner-all"></textarea>
-      				<!-- Allow form submission with keyboard without duplicating the dialog button -->
-      				<input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
-    			</fieldset>
-  			</form>
-		</div>
 
+			<div id="loading">
+				<div class="spinner"></div>
+			</div>
+
+			<div id="gantt" class="section">
+				<h2></h2>
+				<div class="ganttSide">
+					<div class="dayMenu"><a href="" onclick="advanceTime(-6);return false;"><<</a>  <a href="" onclick="advanceTime(-1);return false;"><</a></div>
+				</div>
+				<div class="chartContent"></div>
+				<div id="rightSideGantt">
+					<div class="dayMenu"><a href="" onclick="advanceTime(1);return false;">></a>  <a href="" onclick="advanceTime(6);return false;">>></a></div>
+				</div>
+			</div>
+		</div>
+		<div id="container-bottom">
+			<div id="breakdown" class="section">
+				<div id="changeIntervalSection" style="float: right;">
+					Resolution 
+					<select id="interval">
+						<option value="1">1 minute</option>
+						<option value="2">2 minutes</option>
+						<option value="5">5 minutes</option>
+						<option value="10">10 minutes</option>
+					</select>
+					<!--<input type="text" id="interval">-->
+					<!--<input type="button" id="changeInterval" value="Change">-->
+				</div>
+				<div id="breakdownHeader"><h3></h3></div>
+				<div id="fields">
+				</div>
+				<div id="dayView" class="subsection"></div>
+			</div>
+			
+			<div id="dialog-notes" title="Add/edit note">
+				<p class="validateTips"></p>
+	  			<form>
+	    			<fieldset>
+	      				<label for="notes">Notes</label>
+	      				<textarea name="notes" id="notes" class="text ui-widget-content ui-corner-all"></textarea>
+	      				<!-- Allow form submission with keyboard without duplicating the dialog button -->
+	      				<input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+	    			</fieldset>
+	  			</form>
+			</div>
+			<div id="dialog-settings" title="Edit Settings">
+				<p class="validateTips"></p>
+				<form id="anomaly-settings">
+					<fieldset>
+						<table>
+							<tr>
+								<td><label for="low">Low range</label></td>
+								<td><input type="text" style="width: 40px" name="low" id="low"></td>
+							</tr>
+							<tr>
+								<td><label for="high">High range</label></td>
+								<td><input type="text" style="width: 40px" name="high" id="high"></td>
+							</tr>
+							<tr>
+								<td></td>
+								<td><input type="submit" tabindex="-1" style="position:absolute; top:-1000px"></td>
+							</tr>
+						</table>
+					</fieldset>
+				</form>
+			</div>
+		</div>
 	</div>
 
 </body>
