@@ -22,8 +22,7 @@ if (port != LOCAL_PORT):
 # CONSTANTS
 NOTES_DB = "notes"
 SETTINGS_DB = "settings"
-SETTINGS_ANOMALIES_KEY = "anomalies"
-DUMMY_DATA = False
+DUMMY_DATA = True
 
 @app.route('/')
 def index():
@@ -62,6 +61,7 @@ def get_api_data(patientid):
 	
 	rs = APIRequests("http://russet.ischool.berkeley.edu:8080/query")
 	j = rs.get_patient(patientid)
+	print j
 
 	# If no subverb, then use that CSV.  If subverb, use for activity display.
 	for item in j["items"]:
@@ -92,11 +92,9 @@ def get_notes(userid):
 		userid = userid.strip()
 		for key in notes_db.keys():
 			value = notes_db[key]
-			print value
 			if value["key"]["userid"] == userid:
 				notes_list.append(value)
 		notes_db.close()
-		print notes_list
 		return json.dumps(notes_list)
 	else:
 		notes_db.close()
@@ -122,30 +120,42 @@ def add_note():
 
 @app.route('/getsettings/<userid>', methods = ['GET'])
 def get_settings(userid):
+	settings_list = []	
 	settings_db = shelve.open(SETTINGS_DB)
-	if (len(settings_db) > 0 and SETTINGS_ANOMALIES_KEY in settings_db):
+	if (len(settings_db) > 0):
 		userid = userid.strip()
-		settings_json = json.dumps(settings_db[SETTINGS_ANOMALIES_KEY])
+		for key in settings_db.keys():
+			value = settings_db[key]
+			if value["key"]["userid"] == userid:
+				settings_list.append(value)
 		settings_db.close()
-		return settings_json
+		return json.dumps(settings_list)
 	else:
 		settings_db.close()
 		return '[]'
 
+def validate_numeric(value):
+	return re.match('^([0-9])+$', value) is not None
+
 @app.route('/addsetting', methods = ['POST'])
 def add_setting():
-	settings_db = shelve.open(SETTINGS_DB)
-	json = {}
-	for key in request.form:
-		val = request.form[key]
-		valid = re.match('^([0-9])+$', val) is not None
-		valid = valid and (re.match('^([0-9])+$', val) is not None)
-		if (valid):
-			json[key] = val
-
-	settings_db[SETTINGS_ANOMALIES_KEY] = json
-	settings_db.close()
-	return redirect(url_for('index'))	
+	json = request.get_json()
+	key = str(json['key'])
+	LOW_KEY = 'low'
+	HIGH_KEY = 'high'
+	low = json['value'][LOW_KEY]
+	high = json['value'][HIGH_KEY]
+	valid = validate_numeric(low)
+	valid = valid and validate_numeric(high)
+	if (valid):
+		settings_db = shelve.open(SETTINGS_DB)
+		settings_db[key] = json
+		settings_db.close()
+		userid = str(json["key"]["userid"])
+		print userid
+		return get_settings(userid)
+	else:
+		return '[]'
 
 if __name__ == '__main__':
 	app.debug = True

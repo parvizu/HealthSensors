@@ -97,16 +97,16 @@ var mainParameters = {
 		'interval': 120 // in minutes
 	},
 	'general': {
-		'interval': 1, //in minutes
-		'timeScale': function(x) {return 0;}
+		'interval': 1//, //in minutes
+		//'timeScale': function(x) {return 0;}
 
 	}
 }
 
 var chartConfigurations = {
 	'dayView': {
-		'timeScale': {
-			'width': 945,
+/*		'timeScale': {
+			'width': 1000,
 			'height': 65,
 			'margin': {
 				'left': 35,
@@ -115,13 +115,13 @@ var chartConfigurations = {
 				'bottom': 0
 			}
 		},
-		'charts': {
-			'width': 945,
+*/		'charts': {
+			'width': 1000,
 			'height': 25,
 			'zoomHeight': 75,
 			'margin': {
 				'left': 35,
-				'top': 10,
+				'top': 20,
 				'right': 30,
 				'bottom': 5
 			},
@@ -162,6 +162,14 @@ function newObj(obj) {
 function dateToEpoch(time) {
 	var myDate = new Date(time);
 	return myDate.getTime()/1000.0;
+}
+function getTimeLabel(d) {
+	var hours = String(Math.floor(d/60));
+	var mins = String(d % 60);
+	if (mins.length == 1) {
+		mins = "0" + mins;
+	}
+	return hours + ":" + mins;
 }
 
 function showLoadingView() {
@@ -829,10 +837,19 @@ function createLineChart(config) {
 		.domain([0, width])
 	    .range([0,config.data.length]);	
 	
+	// Get min and max values from data.  If anomaly threshold is lower/higher than min/max data, use those
+	// values as extrema
 	var minMaxValue = minMaxMixedArray(config.data);
 	if (minMaxValue[0] === undefined || minMaxValue[1] === undefined) {
 		minMaxValue[0] = 0;
 		minMaxValue[1] = 100;
+	} else {
+		if (minMaxValue[0] > config.anomalies.low) {
+			minMaxValue[0] = config.anomalies.low;
+		}
+		if (minMaxValue[1] < config.anomalies.high) {
+			minMaxValue[1] = config.anomalies.high;
+		}
 	}
 
 	var y = d3.scale.linear()
@@ -843,9 +860,24 @@ function createLineChart(config) {
 		.domain(minMaxValue)
 		.range([chartConfigurations.dayView.charts.zoomHeight, 0]);
 
-	var xAxis = d3.svg.axis()
-	    .scale(x)
+	var xBaseAxis = d3.svg.axis()
+	    .scale(xBase)
 	    .orient("bottom");
+
+	var xAxis = d3.svg.axis()
+		.outerTickSize([0])
+		.innerTickSize([2])
+		.tickFormat(function(d) { 
+			var label = getTimeLabel(d);
+			if (d % 60 == 0) {
+				return label;
+			} else {
+				return "";
+			}
+		})
+		.tickValues(d3.range(0, 60*24, 10))
+	    .scale(x)
+	    .orient("top");
 
 	var yAxis = d3.svg.axis()
 	    .scale(y)
@@ -886,7 +918,7 @@ function createLineChart(config) {
 	svgZoom.append("rect")
 		.attr("class", "rectTrackCursor")
 		.attr("width", width)
-	    .attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
+	    .attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.bottom)
 	    .attr("fill", "#FFFFFF")
 	    .on("mouseover", cursorShow)
 	    .on("mouseout", cursorHide)
@@ -914,7 +946,7 @@ function createLineChart(config) {
 	// This is the shorter SVG where you can manipulate zoom
 	var svg = dayContainer.append("svg")
 		.attr("width", width + margin.left + margin.right)
-	    .attr("height", height + margin.bottom)
+	    .attr("height", height + margin.bottom) // add 15 for x axis if you need it
 	    .attr("class", "lineChart")
 	    .attr("style", "cursor: crosshair")
 
@@ -931,16 +963,15 @@ function createLineChart(config) {
 
 	// Make background rectangle to handle mouse events
 	svg.append("rect")
-		.attr("width", width + margin.right)
-	    .attr("height", height + margin.top + margin.bottom)
+		.attr("width", width)
+	    .attr("height", height + margin.bottom)
 	    .attr("fill", "#FFFFFF");
 
 	// Make zoom selection rectangle
 	svg.append("rect")
 		.attr("class", "rectZoom")
-		.attr("width", width + margin.left + margin.right)
-		.attr("height", height + margin.top + margin.bottom)
-		.attr("fill", "#EEE");
+		.attr("width", width)
+		.attr("height", height + margin.bottom);
 
 	svg.append("path")
 		.datum(config.data)
@@ -979,6 +1010,15 @@ function createLineChart(config) {
     	.attr("transform","translate(" + config.width + ",0)")
     	.call(yAxisZoom);
 
+    svgZoom.append("g")
+    	.attr("class", "xAxisBar")
+    	//.attr("transform", "translate(0," + chartConfigurations.dayView.charts.zoomHeight + ")")
+    	.call(xAxis);
+
+	//svg.append("g")
+    //	.attr("class", "axisBar")
+    //	.attr("transform", "translate(0," + height + ")")
+    //	.call(xBaseAxis);
 
 	// Handle cursor tracking on taller SVG
 	function trackCursor() {
@@ -1148,10 +1188,41 @@ function createLineChart(config) {
 		// Set new zoom data
 		zoomData = data;
 
+		var yAxisZoom = d3.svg.axis()
+			.scale(yZoom)
+			.ticks(3)
+			.tickSize(8, 1)
+			.orient("right")
+
 		// Reset the scale for the zoomed line
 		x = d3.scale.linear()
 			.domain([0, data.length])
 		    .range([0, config.width]);
+
+		var labelInterval = 10;
+		var tickOffset = 1;
+		if (data.length > 60 * 23) {
+			labelInterval = 60;
+			tickOffset = 10;
+		} else if (data.length > 60 * 12) {
+			labelInterval = 60;
+		} else if (data.length > 240) {
+			labelInterval = 30;
+		}
+		var xAxis = d3.svg.axis()
+			.outerTickSize([0])
+			.innerTickSize([2])
+			.tickFormat(function(d) { 
+				var label = getTimeLabel(d + xStart);
+				if ((d + xStart) % labelInterval == 0) {
+					return label;
+				} else {
+					return "";
+				}
+			})
+			.tickValues(d3.range(0, data.length, tickOffset))
+	    	.scale(x)
+	    	.orient("top");
 
 		// Create a new line with the new scale
 		var line = d3.svg.line().defined(function(d) { return !missingVal(d) })
@@ -1160,6 +1231,13 @@ function createLineChart(config) {
 
 		// Select the zoomed line
 		svgZoom = d3.select("#" + config.id + " div svg.lineChartZoom g");
+
+		//svgZoom.select(".axisBar")
+    	//	.call(yAxisZoom);
+
+    	svgZoom.select(".xAxisBar")
+    		.call(xAxis);
+
 		lineZoom = svgZoom.select("path.lineZoom");
 		
 		// Update the zoomed line data
@@ -1234,7 +1312,7 @@ function createLineChart(config) {
 	      	.attr("transform", function(d) { 
 	      		var xPos = (d - configEpoch) / 60; // convert epoch to minutes
 				var xPixels = x(xPos);
-	      		return "translate(" + xPixels + ",4)"; 
+	      		return "translate(" + xPixels + ",6)"; 
 	      	})
 	      	.on("mousedown", readNote);
 	}
@@ -1600,7 +1678,7 @@ function createDayCharts(start, startEpoch) {
 	$("#dayView").toggle();
 
 	userConfiguration.active = "dayView";
-	buildTimeScale("dayView",["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+	//buildTimeScale("dayView",["",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
 
 	var config;
 	$.each(fieldsToDisplay(), function(i,field) {
@@ -1624,8 +1702,7 @@ function createDayCharts(start, startEpoch) {
 	setBreakdownHeader('daily', '');	
 }
 
-
-function buildTimeScale(target,data) {
+/*function buildTimeScale(target,data) {
 	// We want the time scale range to match the width of the line chart or bar chart it serves as an axis for.
 	var width = chartConfigurations.dayView.charts.width;
 	var x = d3.scale.linear()
@@ -1674,7 +1751,7 @@ function buildTimeScale(target,data) {
 	$.each($(".tick text"),function(i,d) {
 		$(d).html(scaleLabels[i]);
 	});	
-}
+}*/
 
 function showFieldWeek(field) {
 	userConfiguration.active = field;
@@ -1682,7 +1759,7 @@ function showFieldWeek(field) {
 	$("#" + field).html('');
 	$("#" + field).toggle();
 
-	buildTimeScale(field, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+	//buildTimeScale(field, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
 	createWeekChart(field, userConfiguration.week.start);
 }
 

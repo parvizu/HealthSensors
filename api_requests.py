@@ -11,6 +11,7 @@ class APIRequests:
 	def patient_data(self, patient_id):
 		headers = self.get_post_headers()
 		params = json.dumps(self.patient_json(patient_id))
+		print params
 		return self.post(self.postURL, params, headers)
 
 	def get_patient(self, patient_id):
