@@ -163,6 +163,9 @@ function dateToEpoch(time) {
 	var myDate = new Date(time);
 	return myDate.getTime()/1000.0;
 }
+function epochToDate(epoch) {
+	return new Date(epoch * 1000);
+}
 function getTimeLabel(d) {
 	var hours = String(Math.floor(d/60));
 	var mins = String(d % 60);
@@ -229,6 +232,7 @@ function loadUser(id) {
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
 		dbActivities = initValues['activities'];
+		console.log(dbActivities);
 
 		// Assign database settings to app variables
 		setSettings(dbSettings);
@@ -1080,18 +1084,27 @@ function createLineChart(config) {
 		$.each(activities, function(i,d) {
 			startEpoch = dateToEpoch(d.startTime);
 			endEpoch = dateToEpoch(d.endTime);
-			var dayMinutes = (startEpoch - config.epoch)/60;
-			if (dayMinutes > xStart && dayMinutes < xEnd) {
+			var dayStartMinutes = (startEpoch - config.epoch)/60;
+			var dayEndMinutes = (endEpoch - config.epoch)/60;
+			
+			if (dayStartMinutes < xStart && dayEndMinutes >= xStart && dayEndMinutes <= xEnd) {
+				dayStartMinutes = xStart;
+			}
+			if (dayStartMinutes >= xStart && dayStartMinutes <= xEnd && dayEndMinutes > xEnd) {
+				dayEndMinutes = xEnd;
+			}
+			if (dayStartMinutes >= xStart && dayEndMinutes <= xEnd) {
+
 				//svgZoom.insert("rect", ":first-child")
-				// SHOWS UP ON THE 16th, but it's the 17th
+
 				var g = svgZoom.append("g")
 					.attr("class", "activity")
 
 				g.append("rect")
-					.attr("x", x(dayMinutes))
+					.attr("x", x(dayStartMinutes - xStart))
 					.attr("y", 0)
 					.attr("width", function() {
-						minutesBetween = (endEpoch - startEpoch)/60;
+						minutesBetween = dayEndMinutes - dayStartMinutes;
 						return x(minutesBetween);
 					})
 					.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
@@ -1103,7 +1116,7 @@ function createLineChart(config) {
 
    				g.append("image")
    					.attr("xlink:href", "/static/css/images/bicycle-icon.png")
-   					.attr("x", x(dayMinutes) + 5)
+   					.attr("x", x(dayStartMinutes - xStart) + 5)
    					.attr("y", 7)
    					.attr("width", "14")
    					.attr("height", "10");
@@ -1167,23 +1180,25 @@ function createLineChart(config) {
 
 				anomaliesLow = AnomaliesSubset(xStart,xEnd,config.anomalies.low);
 				anomaliesHigh = AnomaliesSubset(xStart,xEnd,config.anomalies.high);
+
+				activities = activitiesSubset(xStart, xEnd);
 				
 				notes = notesSubset(xStart, xEnd, config);
 
-	    		RefreshZoomChart(zoomData, config, anomaliesLow, anomaliesHigh, notes);
+	    		RefreshZoomChart(zoomData, config, anomaliesLow, anomaliesHigh, notes, activities);
     		} else {
     			// Clear rectangle and reset zoom
     			xStart = 0;
     			xEnd = config.data.length;
   				rectZoom.attr("transform", "translate(0,0)")
   				rectZoom.attr("width", width + margin.left + margin.right)
-    			RefreshZoomChart(config.data, config, config.anomalies.low, config.anomalies.high, dbNotes);
+    			RefreshZoomChart(config.data, config, config.anomalies.low, config.anomalies.high, dbNotes, dbActivities);
     		}
   		}
 
 	});
 
-	function RefreshZoomChart(data, config, anomaliesLow, anomaliesHigh, notes) {
+	function RefreshZoomChart(data, config, anomaliesLow, anomaliesHigh, notes, activities) {
 
 		// Set new zoom data
 		zoomData = data;
@@ -1251,6 +1266,7 @@ function createLineChart(config) {
 		// Remove all rectangles (to clear anomalies)
 		svgZoom.selectAll("rect").remove();
 		svgZoom.selectAll(".point").remove();
+		svgZoom.selectAll(".activity").remove();
 
 		// Re-insert cursor-tracking rectangle to top of child list
 		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
@@ -1262,6 +1278,9 @@ function createLineChart(config) {
 		}
 		// Add markers
 		addNotesToChart(notes);
+
+		// Add activities
+		addActivitiesToChart(activities);
 	}
 
 	function AddAnomaliesToChart(targetSvg, anomalies, type, y) {
@@ -1593,6 +1612,45 @@ function AnomaliesSubset(minIndex,maxIndex,anomalies) {
 
 			}
 		}
+	});
+	return list
+}
+
+function activitiesSubset(minIndex, maxIndex) {
+	var list = [];
+	var newActivity;
+	$.each(dbActivities, function(i,d) {
+		startEpoch = dateToEpoch(d.startTime);
+		endEpoch = dateToEpoch(d.endTime);
+		var startDayMinutes = (startEpoch - config.epoch)/60;
+		var endDayMinutes = (endEpoch - config.epoch)/60;
+		if ((startDayMinutes >= minIndex && endDayMinutes <= maxIndex) ||
+			(startDayMinutes < minIndex && endDayMinutes > minIndex && endDayMinutes <= maxIndex) ||
+			(startDayMinutes >= minIndex && startDayMinutes < maxIndex && endDayMinutes > maxIndex)) {
+			list.push(d);
+		}
+/*		if (startDayMinutes >= minIndex && startDayMinutes <= maxIndex) {
+			newActivity = newObj(d);
+			if (endDayMinutes > maxIndex) {
+				newActivity.startTime = epochToDate(startEpoch - minIndex);
+				newActivity.endTime = epochToDate(config.epoch + maxIndex - minIndex);
+				list.push(newActivity);
+			} else {
+				newActivity.startTime = epochToDate(startEpoch - minIndex);
+				newActivity.endTime = epochToDate(config.epoch + endEpoch - minIndex);
+				list.push(newActivity);
+			}
+		} else if (endDayMinutes >= minIndex && endDayMinutes <= maxIndex) {
+			newActivity = newObj(d);
+			newActivity.startTime = epochToDate(minIndex + config.epoch);
+			newActivity.endTime = epochToDate(endEpoch - minIndex);
+			list.push(newActivity);
+		} else if (startDayMinutes <= minIndex && endDayMinutes >= maxIndex) {
+			newActivity = newObj(d);
+			newActivity.startTime = epochToDate(minIndex + config.epoch);
+			newActivity.endTime = epochToDate(config.epoch + maxIndex - minIndex);
+			list.push(newActivity);
+		}*/
 	});
 	return list
 }
