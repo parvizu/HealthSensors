@@ -395,6 +395,7 @@ label, input { display:block; }
 
 .anomaly {
 	opacity: 0.15;
+	pointer-events: none;
 }
 
 /***** DAY VIEW ******/

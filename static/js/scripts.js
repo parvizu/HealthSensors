@@ -1268,9 +1268,6 @@ function createLineChart(config) {
 		svgZoom.selectAll(".point").remove();
 		svgZoom.selectAll(".activity").remove();
 
-		// Re-insert cursor-tracking rectangle to top of child list
-		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
-
 		// Add anomalies
 		if (fields[config.className].anomalies.display) {
 			AddAnomaliesToChart(svgZoom, anomaliesHigh, "h", yZoom);
@@ -1281,6 +1278,10 @@ function createLineChart(config) {
 
 		// Add activities
 		addActivitiesToChart(activities);
+
+		// Re-insert cursor-tracking rectangle to top of child list
+		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
+
 	}
 
 	function AddAnomaliesToChart(targetSvg, anomalies, type, y) {

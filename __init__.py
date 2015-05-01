@@ -23,6 +23,8 @@ if (port != LOCAL_PORT):
 NOTES_DB = "notes"
 SETTINGS_DB = "settings"
 DUMMY_DATA = True
+#DUMMY_DATA_URL = 'data/user14-edf.csv'
+DUMMY_DATA_URL = 'study/basis_edf_u14.csv'
 
 @app.route('/')
 def index():
@@ -35,7 +37,7 @@ def get_init():
 	if not DUMMY_DATA:
 		csv_file, activities = get_api_data(patientid)
 	else:
-		csv_file = open('data/user14-edf.csv', 'rU')
+		csv_file = open(DUMMY_DATA_URL, 'rU')
 	
 	data = []
 	input_file = csv.DictReader(csv_file)
