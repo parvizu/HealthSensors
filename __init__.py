@@ -24,7 +24,8 @@ NOTES_DB = "notes"
 SETTINGS_DB = "settings"
 DUMMY_DATA = True
 #DUMMY_DATA_URL = 'data/user14-edf.csv'
-DUMMY_DATA_URL = 'study/basis_edf_u14.csv'
+DUMMY_EDF_URL = 'study/basis_edf_u14.csv'
+DUMMY_ACTIVITIES_URL = 'study/acts_clean_u14.csv'
 
 @app.route('/')
 def index():
@@ -32,20 +33,19 @@ def index():
 
 @app.route('/getinit', methods = ['POST'])
 def get_init():
-	patientid = request.form['userid']
-	activities = []
+	userid = request.form['userid']
 	if not DUMMY_DATA:
-		csv_file, activities = get_api_data(patientid)
+		csv_file, activities = get_api_data(userid)
 	else:
-		csv_file = open(DUMMY_DATA_URL, 'rU')
+		csv_file, activities = get_dummy_data()
 	
 	data = []
 	input_file = csv.DictReader(csv_file)
 	for row in input_file:
 		data.append(row)
 
-	notes = get_notes(patientid)
-	settings = get_settings(patientid)
+	notes = get_notes(userid)
+	settings = get_settings(userid)
 	app_data = { 
 			'data': data, 
 			'notes': notes, 
@@ -54,7 +54,19 @@ def get_init():
 		}
 	return json.dumps(app_data)
 
-def get_api_data(patientid):
+def get_dummy_data():
+	csv_file = open(DUMMY_EDF_URL, 'rU')
+	activities_file = open(DUMMY_ACTIVITIES_URL, 'rU')
+	# endTime: "2014-06-17T18:52:00.000Z"
+	# startTime: "2014-06-17T18:14:00.000Z"
+	# subVerb: "http://siemens.com/schemas/activity#Cycling"
+	activities = []
+	input_file = csv.DictReader(activities_file)
+	for row in input_file:
+		activities.append(row)
+	return csv_file, activities
+
+def get_api_data(userid):
 	SUBVERB_KEY = "subVerb"
 	STARTTIME_KEY = "startTime"
 	ENDTIME_KEY = "endTime"
@@ -62,7 +74,7 @@ def get_api_data(patientid):
 	activities = []
 	
 	rs = APIRequests("http://russet.ischool.berkeley.edu:8080/query")
-	j = rs.get_patient(patientid)
+	j = rs.get_patient(userid)
 	print j
 
 	# If no subverb, then use that CSV.  If subverb, use for activity display.
@@ -161,4 +173,4 @@ def add_setting():
 
 if __name__ == '__main__':
 	app.debug = True
-	app.run(port=port)
+	app.run(host='0.0.0.0', port=port)

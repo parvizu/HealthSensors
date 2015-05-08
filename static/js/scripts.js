@@ -69,6 +69,14 @@ var fields = {
 		}
 	};
 
+var subVerbIcons = {
+	'cycling': '/static/css/images/bicycle-icon.png',
+	'http://siemens.com/schemas/activity#Cycling': '/static/css/images/bicycle-icon.png',
+	'walking': '/static/css/images/walking-icon.png',
+	'transport': '/static/css/images/transport-icon.png'
+}
+
+
 var fullWeekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -229,10 +237,9 @@ function loadUser(id) {
 		// Init values loaded.
 		initValues = JSON.parse(data);
 		dbData = initValues['data'];
+		dbActivities = initValues['activities'];
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
-		dbActivities = initValues['activities'];
-		console.log(dbActivities);
 
 		// Assign database settings to app variables
 		setSettings(dbSettings);
@@ -1019,11 +1026,6 @@ function createLineChart(config) {
     	//.attr("transform", "translate(0," + chartConfigurations.dayView.charts.zoomHeight + ")")
     	.call(xAxis);
 
-	//svg.append("g")
-    //	.attr("class", "axisBar")
-    //	.attr("transform", "translate(0," + height + ")")
-    //	.call(xBaseAxis);
-
 	// Handle cursor tracking on taller SVG
 	function trackCursor() {
 		var xPixels = d3.mouse(this)[0];
@@ -1079,14 +1081,16 @@ function createLineChart(config) {
 		}
 	}
 
-	function addActivitiesToChart(activities) {
+	function addActivitiesToChart(activities, svg, isZoomSVG) {
 		//targetSvg, anomalies, type, y
+		
 		$.each(activities, function(i,d) {
+
 			startEpoch = dateToEpoch(d.startTime);
 			endEpoch = dateToEpoch(d.endTime);
 			var dayStartMinutes = (startEpoch - config.epoch)/60;
 			var dayEndMinutes = (endEpoch - config.epoch)/60;
-			
+
 			if (dayStartMinutes < xStart && dayEndMinutes >= xStart && dayEndMinutes <= xEnd) {
 				dayStartMinutes = xStart;
 			}
@@ -1094,10 +1098,9 @@ function createLineChart(config) {
 				dayEndMinutes = xEnd;
 			}
 			if (dayStartMinutes >= xStart && dayEndMinutes <= xEnd) {
-
 				//svgZoom.insert("rect", ":first-child")
 
-				var g = svgZoom.append("g")
+				var g = svg.append("g")
 					.attr("class", "activity")
 
 				g.append("rect")
@@ -1109,17 +1112,19 @@ function createLineChart(config) {
 					})
 					.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
 					.attr("fill", "#551A8B")
-					.attr("opacity", 0.3)
+					.attr("opacity", isZoomSVG ? 0.3 : 0.1)
 					.attr("class", "activity")
 					.append("svg:title")
    					.text(d.subVerb);
 
-   				g.append("image")
-   					.attr("xlink:href", "/static/css/images/bicycle-icon.png")
-   					.attr("x", x(dayStartMinutes - xStart) + 5)
-   					.attr("y", 7)
-   					.attr("width", "14")
-   					.attr("height", "10");
+   				if (isZoomSVG) {
+	   				g.append("image")
+	   					.attr("xlink:href", subVerbIcons[d.subVerb])
+	   					.attr("x", x(dayStartMinutes - xStart) + 3)
+	   					.attr("y", 7)
+	   					.attr("width", "14")
+	   					.attr("height", "10");   					
+	   			}
 			}
 		});
 	}
@@ -1181,7 +1186,7 @@ function createLineChart(config) {
 				anomaliesLow = AnomaliesSubset(xStart,xEnd,config.anomalies.low);
 				anomaliesHigh = AnomaliesSubset(xStart,xEnd,config.anomalies.high);
 
-				activities = activitiesSubset(xStart, xEnd);
+				activities = activitiesSubset(xStart, xEnd, config);
 				
 				notes = notesSubset(xStart, xEnd, config);
 
@@ -1277,7 +1282,7 @@ function createLineChart(config) {
 		addNotesToChart(notes);
 
 		// Add activities
-		addActivitiesToChart(activities);
+		addActivitiesToChart(activities, svgZoom, true);
 
 		// Re-insert cursor-tracking rectangle to top of child list
 		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
@@ -1318,7 +1323,8 @@ function createLineChart(config) {
 	}
 
 	addNotesToChart(dbNotes);
-	addActivitiesToChart(dbActivities);
+	addActivitiesToChart(dbActivities, svgZoom, true);
+	addActivitiesToChart(dbActivities, svg, false)
 
 	function addNoteMarker(listEpochs, configEpoch) {
 		markerGroup
@@ -1617,7 +1623,7 @@ function AnomaliesSubset(minIndex,maxIndex,anomalies) {
 	return list
 }
 
-function activitiesSubset(minIndex, maxIndex) {
+function activitiesSubset(minIndex, maxIndex, config) {
 	var list = [];
 	var newActivity;
 	$.each(dbActivities, function(i,d) {
