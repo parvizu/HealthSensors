@@ -219,9 +219,19 @@ var dbNotes;
 var dbActivities;
 
 $(document).ready( function() {
-	userid = "http://example.org/johndoe"
+	//userid = "http://example.org/johndoe"
+	userid = $("#patientId").val()
 	loadUser(userid);
 });
+
+function toggleActivities() {
+	var isChecked = $("#cbActivities").is(":checked");
+	if (isChecked) {
+		$("g.activity").show();
+	} else {
+		$("g.activity").hide();
+	}
+}
 
 function loadUser(id) {
 
@@ -241,6 +251,7 @@ function loadUser(id) {
 		dbNotes = JSON.parse(initValues['notes']);
 		dbSettings = JSON.parse(initValues['settings']);
 
+		console.log(dbActivities);
 		// Assign database settings to app variables
 		setSettings(dbSettings);
 		
@@ -1111,7 +1122,7 @@ function createLineChart(config) {
 						return x(minutesBetween);
 					})
 					.attr("height", chartConfigurations.dayView.charts.zoomHeight + margin.top + margin.bottom)
-					.attr("fill", "#551A8B")
+					.attr("fill", "#4F94CD")
 					.attr("opacity", isZoomSVG ? 0.3 : 0.1)
 					.attr("class", "activity")
 					.append("svg:title")
@@ -1283,7 +1294,7 @@ function createLineChart(config) {
 
 		// Add activities
 		addActivitiesToChart(activities, svgZoom, true);
-
+		toggleActivities();
 		// Re-insert cursor-tracking rectangle to top of child list
 		svgZoom.insert(function() { return rectTrackCursor }, ":first-child");
 

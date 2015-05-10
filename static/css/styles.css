@@ -285,6 +285,10 @@ label, input { display:block; }
 	display: none;
 }
 
+#changeIntervalSection div {
+	display:inline-block;
+}
+
 /** Time Scale ***/
 
 .timeAxis path,
@@ -402,12 +406,14 @@ label, input { display:block; }
 	pointer-events: none;
 }
 
-label {
+label.activities {
     display: block;
     padding-left: 15px;
     text-indent: -15px;
+    margin-right: 30px;
 }
 input[type=checkbox] {
+	display: inline;
     width: 13px;
     height: 13px;
     padding: 0;

@@ -26,10 +26,41 @@ DUMMY_DATA = True
 #DUMMY_DATA_URL = 'data/user14-edf.csv'
 DUMMY_EDF_URL = 'study/basis_edf_u14.csv'
 DUMMY_ACTIVITIES_URL = 'study/acts_clean_u14.csv'
+DUMMY_USERS = [ 
+	{ 'key': 'User 1', 'value': '0' }, 
+	{ 'key': 'User 5', 'value': '1' },
+	{ 'key': 'User 7', 'value': '2' },
+	{ 'key': 'User 9', 'value': '3' },
+	{ 'key': 'User 14', 'value': '4' }
+]
+DUMMY_FOLDER = 'study/'
+DUMMY_FILES_EDF = [
+	'basis_edf_u1.csv',
+	'basis_edf_u5.csv',
+	'basis_edf_u7.csv',
+	'basis_edf_u9.csv',
+	'basis_edf_u14.csv'
+]
+DUMMY_FILES_ACTIVITIES = [
+	'acts_clean_u1.csv',
+	'acts_clean_u5.csv',
+	'acts_clean_u7.csv',
+	'acts_clean_u9.csv',
+	'acts_clean_u14.csv'
+]
+SIEMENS_USERS = [
+	{ 'key': 'John Doe', 'value': 'http://example.org/johndoe' },
+	{ 'key': 'Jane Doe', 'value': 'http://example.org/janesmith' }
+]
 
 @app.route('/')
 def index():
-	return render_template('index.html')
+	if not DUMMY_DATA:
+		users = SIEMENS_USERS
+	else:
+		users = DUMMY_USERS
+
+	return render_template('index.html', users=users)
 
 @app.route('/getinit', methods = ['POST'])
 def get_init():
@@ -37,7 +68,7 @@ def get_init():
 	if not DUMMY_DATA:
 		csv_file, activities = get_api_data(userid)
 	else:
-		csv_file, activities = get_dummy_data()
+		csv_file, activities = get_dummy_data(userid)
 	
 	data = []
 	input_file = csv.DictReader(csv_file)
@@ -54,9 +85,10 @@ def get_init():
 		}
 	return json.dumps(app_data)
 
-def get_dummy_data():
-	csv_file = open(DUMMY_EDF_URL, 'rU')
-	activities_file = open(DUMMY_ACTIVITIES_URL, 'rU')
+def get_dummy_data(userid):
+	userid = int(userid)
+	csv_file = open(DUMMY_FOLDER + DUMMY_FILES_EDF[userid], 'rU')
+	activities_file = open(DUMMY_FOLDER + DUMMY_FILES_ACTIVITIES[userid], 'rU')
 	# endTime: "2014-06-17T18:52:00.000Z"
 	# startTime: "2014-06-17T18:14:00.000Z"
 	# subVerb: "http://siemens.com/schemas/activity#Cycling"
